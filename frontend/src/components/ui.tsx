@@ -6,7 +6,7 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 
 /* Icons: inline SVG (Lucide-style), decorative => aria-hidden. */
-type IconName = "users" | "upload" | "activity" | "alert" | "check" | "info" | "download" | "ban" | "dashboard" | "megaphone" | "inbox" | "kanban" | "plug" | "history" | "send" | "edit" | "x" | "external" | "hand" | "copy" | "play" | "pause" | "file";
+type IconName = "users" | "upload" | "activity" | "alert" | "check" | "info" | "download" | "ban" | "dashboard" | "megaphone" | "inbox" | "kanban" | "plug" | "history" | "send" | "edit" | "x" | "external" | "hand" | "copy" | "play" | "pause" | "file" | "sun" | "moon";
 const PATHS: Record<IconName, string> = {
   users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
@@ -30,6 +30,8 @@ const PATHS: Record<IconName, string> = {
   copy: "M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1",
   play: "M6 4l14 8-14 8z",
   pause: "M6 4h4v16H6zM14 4h4v16h-4z",
+  sun: "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4",
+  moon: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z",
   file: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h8",
 };
 export function Icon({ name, className = "h-4 w-4" }: { name: IconName; className?: string }) {
@@ -77,7 +79,7 @@ export function Card({ title, actions, children, className }: { title?: string; 
     <section className={cx("page-in min-w-0 rounded-xl border border-border bg-card shadow-card", className)}>
       {(title || actions) && (
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold tracking-tight">{title}</h2>{actions}
+          <h2 className="text-[15px] font-semibold">{title}</h2>{actions}
         </header>)}
       <div className="p-4">{children}</div>
     </section>
@@ -135,13 +137,13 @@ export function Skeleton({ rows = 5 }: { rows?: number }) {
 export function PageHeader({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children?: ReactNode }) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div><h1 className="text-2xl leading-tight">{title}</h1>{subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}</div>
+      <div><h1 className="text-2xl sm:text-[1.75rem]">{title}</h1>{subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}</div>
       <div className="flex flex-wrap items-center gap-2">{children}</div>
     </div>
   );
 }
 
-export const th = "sticky top-0 whitespace-nowrap bg-muted/70 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur";
+export const th = "sticky top-0 whitespace-nowrap bg-muted/70 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur";
 export const td = "px-3 py-2.5 align-top";
 export { Link, cx };
 
@@ -207,7 +209,7 @@ export function StatCard({ label, value, caption, icon, spark, tone = "primary",
         <span className={cx("grid h-9 w-9 place-items-center rounded-lg", chip)}><Icon name={icon} className="h-[18px] w-[18px]" /></span>
         {spark && <Sparkline data={spark} color={tone === "accent" ? 3 : tone === "success" ? 1 : 0} />}
       </div>
-      <div className="mt-3 text-[13px] font-medium text-muted-foreground">{label}</div>
+      <div className="mt-3 text-sm font-medium text-muted-foreground">{label}</div>
       <div className="text-3xl font-semibold tabular-nums tracking-tight">{value}</div>
       {caption && <div className="mt-0.5 text-xs text-muted-foreground">{caption}</div>}
     </div>

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { Logo } from "./Logo";
+import { ThemeToggle } from "./ThemeToggle";
 import { Avatar, Icon } from "./ui";
 
 type NavItem = { href: string; label: string; icon: any };
@@ -20,11 +22,9 @@ const NAV: { group: string; items: NavItem[] }[] = [
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5 px-3 py-4">
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-primary to-[hsl(262_70%_55%)] shadow-glow" aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h6l2-6 3 12 2-6h3" /></svg></span>
-      <div className="leading-tight"><div className="font-display text-lg text-white">FlowHQ</div><div className="text-[11px] uppercase tracking-widest text-sidebar-foreground/70">Outreach OS</div></div>
-    </div>
+    <Link href="/dashboard" aria-label="FlowHQ Outreach OS, go to dashboard" className="block rounded-lg px-3 py-4">
+      <Logo onDark />
+    </Link>
   );
 }
 
@@ -38,7 +38,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <Link key={n.href} href={n.href} aria-current={active ? "page" : undefined}
         className={`relative flex min-h-[44px] items-center gap-2.5 whitespace-nowrap rounded-lg px-3 text-sm transition-colors duration-200 md:min-h-9 ${mobile ? "" : "w-full"} ${active ? "bg-white/10 font-semibold text-white" : "text-sidebar-foreground hover:bg-white/5 hover:text-white"}`}>
         {active && !mobile && <span aria-hidden="true" className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r bg-primary" />}
-        <Icon name={n.icon} className={`h-[17px] w-[17px] ${active ? "text-primary-foreground" : ""}`} />{n.label}
+        <Icon name={n.icon} className={`h-[17px] w-[17px] ${active ? "text-white" : ""}`} />{n.label}
       </Link>);
   };
   return (
@@ -49,19 +49,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <Brand />
           <nav aria-label="Main" className="flex-1 space-y-5 overflow-y-auto pt-2">
             {NAV.map((g) => (
-              <div key={g.group}><div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">{g.group}</div>
+              <div key={g.group}><div className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-widest text-sidebar-foreground/60">{g.group}</div>
                 <div className="space-y-0.5">{g.items.map((n) => link(n))}</div></div>))}
           </nav>
+          <ThemeToggle variant="row" className="mt-2" />
           <div className="mt-2 flex items-center gap-2.5 rounded-lg bg-white/5 p-2.5">
             <Avatar name={me?.email ?? "?"} size={32} />
-            <div className="min-w-0 flex-1 leading-tight"><div className="truncate text-[13px] font-medium text-white">{me?.email ?? "…"}</div><div className="text-[11px] capitalize text-sidebar-foreground/70">{me?.role}</div></div>
+            <div className="min-w-0 flex-1 leading-tight"><div className="truncate text-sm font-medium text-white">{me?.email ?? "…"}</div><div className="text-xs capitalize text-sidebar-foreground/70">{me?.role}</div></div>
             <button onClick={logout} aria-label="Sign out" title="Sign out" className="grid h-8 w-8 cursor-pointer place-items-center rounded-md text-sidebar-foreground hover:bg-white/10 hover:text-white"><Icon name="x" /></button>
           </div>
         </div>
       </aside>
       <div className="min-w-0">
         <header className="bg-sidebar lg:hidden">
-          <div className="flex items-center justify-between pr-2"><Brand /><button onClick={logout} className="min-h-[44px] cursor-pointer px-3 text-sm text-sidebar-foreground">Sign out</button></div>
+          <div className="flex items-center justify-between pr-2"><Brand /><div className="flex items-center gap-1"><ThemeToggle className="text-sidebar-foreground hover:bg-white/10 hover:text-white" /><button onClick={logout} className="min-h-[44px] cursor-pointer px-3 text-sm text-sidebar-foreground">Sign out</button></div></div>
           <nav aria-label="Main" className="flex items-center gap-1 overflow-x-auto px-2 pb-2">{NAV.flatMap((g) => g.items).map((n) => link(n, true))}</nav>
         </header>
         <main id="main" className="mx-auto max-w-7xl px-4 py-6 lg:px-8">{children}</main>

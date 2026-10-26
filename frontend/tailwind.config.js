@@ -1,8 +1,14 @@
 const c = (n) => `hsl(var(--${n}) / <alpha-value>)`;
 module.exports = {
+  // Theme is driven by <html data-theme="light|dark"> (set before paint by the script in layout.tsx).
+  darkMode: ["selector", '[data-theme="dark"]'],
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)", "Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
       colors: {
         background: c("background"), foreground: c("foreground"), card: c("card"), muted: c("muted"),
         "muted-foreground": c("muted-foreground"), border: c("border"), primary: c("primary"),

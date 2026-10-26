@@ -26,21 +26,29 @@
   --chart-5: 215 16% 60%;
   --chart-6: 0 72% 50%;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 226 35% 8%; --foreground: 210 40% 96%; --card: 226 30% 12%;
-    --muted: 224 24% 18%; --muted-foreground: 215 20% 72%; --border: 224 20% 22%;
-    --primary: 217 91% 66%; --primary-foreground: 226 47% 8%; --accent: 30 95% 58%;
-    --destructive: 0 90% 72%; --success: 152 60% 62%; --warning: 38 92% 66%; --ring: 217 91% 66%;
-    --sidebar: 226 45% 6%; --sidebar-foreground: 215 20% 75%;
-    --chart-1: 217 91% 66%; --chart-2: 30 95% 60%; --chart-3: 172 66% 50%; --chart-4: 262 83% 74%; --chart-5: 215 20% 65%; --chart-6: 0 90% 70%;
-  }
+/* Dark theme: toggled via <html data-theme="dark"> (see ThemeToggle + the no-flash script in layout.tsx). */
+:root { color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: 226 35% 8%; --foreground: 210 40% 96%; --card: 226 30% 12%;
+  --muted: 224 24% 18%; --muted-foreground: 215 20% 72%; --border: 224 20% 22%;
+  --primary: 217 91% 66%; --primary-foreground: 226 47% 8%; --accent: 30 95% 58%;
+  --destructive: 0 90% 72%; --success: 152 60% 62%; --warning: 38 92% 66%; --ring: 217 91% 66%;
+  --sidebar: 226 45% 6%; --sidebar-foreground: 215 20% 75%;
+  --chart-1: 217 91% 66%; --chart-2: 30 95% 60%; --chart-3: 172 66% 50%; --chart-4: 262 83% 74%; --chart-5: 215 20% 65%; --chart-6: 0 90% 70%;
 }
-html { font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 16px; }
-body { @apply bg-background text-foreground antialiased; line-height: 1.5; font-feature-settings: "cv11", "ss01"; }
-h1, .font-display { font-family: "Calistoga", "Inter", Georgia, serif; letter-spacing: -0.01em; font-weight: 400; }
-code, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
-:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+/* Typography: one family (Inter, self-hosted via next/font) with a clear scale instead of a serif/sans mix. */
+@layer base {
+  html { font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 16px; -webkit-text-size-adjust: 100%; text-rendering: optimizeLegibility; }
+  body { @apply bg-background text-foreground antialiased; line-height: 1.5; font-feature-settings: "cv05", "ss03"; }
+  h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; text-wrap: balance; }
+  h1 { font-size: 1.75rem; letter-spacing: -0.03em; }
+  p { text-wrap: pretty; }
+  code, kbd, .mono { font-family: var(--font-mono), ui-monospace, monospace; font-size: 0.92em; }
+  :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+}
+body { transition: background-color 200ms ease, color 200ms ease; }
 .page-in { animation: pagein 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 @keyframes pagein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 900ms ease-out forwards; }

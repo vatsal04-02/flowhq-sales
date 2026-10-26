@@ -29,7 +29,9 @@ export default function Dashboard() {
   const roll = (a: number[]) => a.map((_, i) => a.slice(Math.max(0, i - 6), i + 1).reduce((x, y) => x + y, 0)); // 7-day rolling sum reads as a trend
   const sentSpark = useMemo(() => roll(series.map((d) => d.sent)), [series]); const replySpark = useMemo(() => roll(series.map((d) => d.replies)), [series]);
   const tot = useMemo(() => ({ sent: series.reduce((a, d) => a + d.sent, 0), replies: series.reduce((a, d) => a + d.replies, 0), positive: series.reduce((a, d) => a + d.positive, 0) }), [series]);
-  const hour = new Date().getHours(); const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  // Depends on the viewer's clock and locale, so it is only filled in after mount (server and client markup must match).
+  const [now, setNow] = useState<Date | null>(null); useEffect(() => setNow(new Date()), []);
+  const greet = !now ? "Welcome back" : now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
   const attention = attn ? [
     attn.positive_replies > 0 && { href: "/inbox", tone: "border-success/30 bg-success/10", icon: "inbox", text: <><b>{attn.positive_replies}</b> positive repl{attn.positive_replies === 1 ? "y" : "ies"} waiting</> },
     attn.drafts_to_review > 0 && { href: "/review", tone: "border-primary/30 bg-primary/10", icon: "edit", text: <><b>{attn.drafts_to_review}</b> draft{attn.drafts_to_review === 1 ? "" : "s"} to review</> },
@@ -39,7 +41,7 @@ export default function Dashboard() {
   ].filter(Boolean) as { href: string; tone: string; icon: any; text: React.ReactNode }[] : [];
   return (
     <Shell>
-      <PageHeader title={`${greet}${me ? `, ${me}` : ""}`} subtitle={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}>
+      <PageHeader title={`${greet}${me ? `, ${me}` : ""}`} subtitle={now ? now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) : " "}>
         <select aria-label="Time window" className={`${inputCls} !w-auto`} value={days} onChange={(e) => setDays(e.target.value)}>
           <option value="">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
       </PageHeader>

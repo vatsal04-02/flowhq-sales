@@ -1,16 +1,22 @@
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-export const metadata = { title: "FlowHQ Outreach OS" };
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+
+export const metadata = {
+  title: { default: "FlowHQ Outreach OS", template: "%s · FlowHQ" },
+  description: "Approval-first outreach: research, personalize and follow up, with a human approving every message.",
+};
 export const viewport = { width: "device-width", initialScale: 1 };
+
+// Runs before first paint so a saved (or OS-preferred) dark theme never flashes light.
+const THEME_SCRIPT = `try{var t=localStorage.getItem("flowhq-theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="light"}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
-      </head>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
       <body>{children}</body>
     </html>
   );

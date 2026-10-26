@@ -42,7 +42,7 @@ export default function Leads() {
       <PageHeader title="Leads" subtitle={`${items.length}${cursor ? "+" : ""} shown`}>
         <Link href="/import" className="inline-flex min-h-[44px] items-center rounded bg-primary px-3 text-sm font-medium text-primary-foreground md:min-h-9">Import CSV</Link>
       </PageHeader>
-      <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_200px_110px]" role="search">
+      <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_200px_150px]" role="search">
         <Input aria-label="Search leads" placeholder="Search name, email, company, domain" value={q} onChange={(e) => setQ(e.target.value)} />
         <select aria-label="Filter by status" className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>{STATUSES.map((s) => <option key={s} value={s}>{pretty(s)}</option>)}</select>
