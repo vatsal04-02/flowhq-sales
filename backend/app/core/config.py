@@ -27,6 +27,19 @@ class Settings(BaseSettings):
     llm_model: str = "qwen2.5:3b-instruct"  # use qwen2.5:1.5b-instruct for more speed
     llm_timeout_seconds: int = 60
 
+    # Voice dictation. stt_provider: none (off) | fake (tests) | openai_compat (any server exposing POST {base}/audio/transcriptions:
+    # a local faster-whisper / whisper.cpp server, or an authorised hosted provider). Audio is deleted as soon as it is processed.
+    stt_provider: str = "none"
+    stt_base_url: str = "http://localhost:8001/v1"
+    stt_model: str = "Systran/faster-whisper-small"
+    stt_api_key: str = ""  # only for hosted providers; never returned to the browser or logged
+    stt_timeout_seconds: int = 60
+    stt_processing: str = ""  # "local" | "cloud" to override what is inferred from stt_base_url
+    voice_max_bytes: int = 10 * 1024 * 1024
+    voice_max_seconds: int = 120
+    voice_max_per_hour: int = 60  # per user
+    voice_retention_hours: int = 24  # transcripts are kept this long for "recent dictations", then deleted
+
     public_base_url: str = "http://localhost:3000"  # used in unsubscribe links
     allow_private_fetch: bool = False  # tests only: lets the research fetcher reach localhost
     imap_poll_seconds: int = 60

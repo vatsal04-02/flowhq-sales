@@ -409,3 +409,26 @@ class AIUsageRecord(Base):
     ok: Mapped[bool] = mapped_column(Boolean, default=True)
     error: Mapped[str | None] = mapped_column(String(300))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class VoiceTranscription(Base, Timestamps):
+    """One dictation. `audio` exists only between upload and processing; it is wiped whether processing succeeds or fails."""
+    __tablename__ = "voice_transcription"
+    __table_args__ = (Index("ix_voice_user_created", "user_id", "created_at"),)
+    id: Mapped[uuid.UUID] = _id()
+    workspace_id: Mapped[uuid.UUID] = _ws()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_account.id"), index=True)
+    status: Mapped[str] = mapped_column(String(12), default="queued")
+    # queued | processing | done | failed | cancelled | cleared (cancelled/cleared keep no content but still count toward the hourly limit)
+    language: Mapped[str] = mapped_column(String(12), default="auto")
+    cleanup_requested: Mapped[bool] = mapped_column(Boolean, default=False)
+    audio: Mapped[bytes | None] = mapped_column(LargeBinary)
+    audio_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    raw_text: Mapped[str | None] = mapped_column(Text)
+    clean_text: Mapped[str | None] = mapped_column(Text)
+    cleanup_note: Mapped[str | None] = mapped_column(String(200))
+    error_code: Mapped[str | None] = mapped_column(String(40))
+    error_message: Mapped[str | None] = mapped_column(String(300))
+    provider: Mapped[str | None] = mapped_column(String(100))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import { Alert, Badge, Button, Card, Field, Icon, Input, PageHeader, Skeleton, inputCls } from "@/components/ui";
+import VoiceSettings from "@/components/VoiceSettings";
 import { Account, api } from "@/lib/api";
 
 type Data = { accounts: Account[]; llm: Record<string, any>; llm_usage: { calls: number; avg_latency_ms: number; failures: number }; manual_channels: { channel: string; mode: string; note: string }[]; kill_switch: boolean };
@@ -60,6 +61,7 @@ export default function Integrations() {
               <Field label="IMAP security"><select className={inputCls} value={f.imap_security} onChange={(e) => setF({ ...f, imap_security: e.target.value })}><option value="ssl">SSL/TLS (993)</option><option value="starttls">STARTTLS (143)</option><option value="none">None (local testing only)</option></select></Field>
               <div className="md:col-span-2"><Button variant="primary">Save account</Button></div></form>)}
           </Card>
+          <VoiceSettings />
           <Card title="LinkedIn & Instagram">
             <ul className="space-y-2 text-sm">{d.manual_channels.map((m) => (<li key={m.channel} className="flex gap-2"><Icon name="hand" className="mt-0.5 h-4 w-4" /><div><b className="capitalize">{m.channel}</b> <Badge tone="info">{m.mode}</Badge><div className="text-muted-foreground">{m.note}</div></div></li>))}</ul>
             <p className="mt-3 text-xs text-muted-foreground">These channels have no compliant automated route for cold messages. FlowHQ prepares evidence-based drafts; you paste and send in your own browser. It never logs in to or controls these accounts.</p>

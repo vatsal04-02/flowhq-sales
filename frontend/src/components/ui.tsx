@@ -6,7 +6,7 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react
 const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 
 /* Icons: inline SVG (Lucide-style), decorative => aria-hidden. */
-type IconName = "users" | "upload" | "activity" | "alert" | "check" | "info" | "download" | "ban" | "dashboard" | "megaphone" | "inbox" | "kanban" | "plug" | "history" | "send" | "edit" | "x" | "external" | "hand" | "copy" | "play" | "pause" | "file" | "sun" | "moon";
+type IconName = "users" | "upload" | "activity" | "alert" | "check" | "info" | "download" | "ban" | "dashboard" | "megaphone" | "inbox" | "kanban" | "plug" | "history" | "send" | "edit" | "x" | "external" | "hand" | "copy" | "play" | "pause" | "file" | "sun" | "moon" | "mic" | "square" | "chevron";
 const PATHS: Record<IconName, string> = {
   users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   upload: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
@@ -30,6 +30,9 @@ const PATHS: Record<IconName, string> = {
   copy: "M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1",
   play: "M6 4l14 8-14 8z",
   pause: "M6 4h4v16H6zM14 4h4v16h-4z",
+  mic: "M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8",
+  square: "M7 7h10v10H7z",
+  chevron: "M6 9l6 6 6-6",
   sun: "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4",
   moon: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z",
   file: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h8",

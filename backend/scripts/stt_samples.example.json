@@ -1,0 +1,14 @@
+[
+  {"file": "en_01.wav", "language": "en", "expected": "Please call Rohan Mehta tomorrow at 5 30 about the dental implant offer."},
+  {"file": "en_02.wav", "language": "en", "expected": "The price is 5000 rupees and our website is flowhq.in."},
+  {"file": "en_03.wav", "language": "en", "expected": "Send the proposal to asha@brightsmile.in on Monday morning."},
+  {"file": "hi_01.wav", "language": "hi", "expected": "कल दोपहर 3 बजे रोहन को फोन करना है"},
+  {"file": "hi_02.wav", "language": "hi", "expected": "इस ऑफर की कीमत 5000 रुपये है"},
+  {"file": "hi_03.wav", "language": "hi", "expected": "क्लाइंट को फ़ॉलो-अप ईमेल भेजना है"},
+  {"file": "hinglish_01.wav", "language": "hinglish", "expected": "kal teen baje Rohan ko phone karna hai"},
+  {"file": "hinglish_02.wav", "language": "hinglish", "expected": "price 5000 rupaye hai aur offer is hafte tak valid hai"},
+  {"file": "hinglish_03.wav", "language": "hinglish", "expected": "client ko follow up email bhejna hai Monday tak"},
+  {"file": "hinglish_04.wav", "language": "hinglish", "expected": "Asha ka email asha@brightsmile.in hai, usko proposal bhej do"},
+  {"file": "hinglish_05.wav", "language": "hinglish", "expected": "hamari website flowhq.in pe jaake campaign dekh lijiye"},
+  {"file": "hinglish_06.wav", "language": "hinglish", "expected": "dental implant ka offer 20 percent discount ke saath hai"}
+]

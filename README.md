@@ -21,8 +21,25 @@ cd ../frontend && npm install && API_URL=http://localhost:8000 npm run dev
 `cp .env.example .env`, edit the CHANGE values, `docker compose up --build`, then
 `docker compose exec api python -m app.cli create-admin EMAIL PASSWORD`.
 
+## Voice dictation (optional)
+Microphone buttons appear on the campaign form (objective, offer, tone, keywords), the draft subject and body, the inbox reply and pipeline notes.
+Press one, speak, press Stop, **review and edit** the transcript, then Insert (at the cursor or at the end; existing text is never replaced).
+It never sends anything, and nothing is recorded until you press the button. The chevron next to the microphone sets the language (English, Hindi,
+Hinglish, auto) and optional tidy-up.
+
+Setup: run any OpenAI-compatible speech server (for example a faster-whisper or whisper.cpp server exposing `/v1/audio/transcriptions`) and set
+`STT_PROVIDER=openai_compat`, `STT_BASE_URL` and `STT_MODEL` in `.env`, then restart the API and worker. `STT_PROVIDER=none` (the default) switches it off.
+Tidy-up additionally needs `LLM_PROVIDER=ollama`; it is discarded automatically if it changes any number, link, email address or name.
+- **Privacy:** raw audio is stored only until the worker finishes (seconds) and is wiped on success, failure and cancel; audio and transcripts are never logged.
+  Transcripts are kept `VOICE_RETENTION_HOURS` (24) for "recent dictations" and users can clear them on the Integrations page. That page and the review dialog say
+  whether processing happens on your server or at an external service. Deleted audio is not securely erased from Postgres WAL or backups.
+- **Quality:** depends entirely on the model. English works with small models; Hindi, and especially Hinglish (Hindi in Roman letters), need a larger one.
+  Measure it on your own voice: `cd backend && python -m scripts.bench_stt DIR` (`scripts/stt_samples.example.json` is a ready-made reading script).
+- **Limits:** 120 s per recording, 10 MB, 60 per user per hour. Browser dictation only; there is no desktop or global-hotkey dictation yet.
+  Design notes: `docs/adr/0002-voice-dictation.md`.
+
 ## Tests
-`cd backend && .venv/bin/pytest -q` (needs a Postgres with database `flowhq_test`; see `tests/conftest.py`).
+`cd backend && .venv/bin/pytest -q` (needs a Postgres with database `flowhq_test`; see `tests/conftest.py`). Frontend: `cd frontend && npm test`.
 
 ## Backups
 `pg_dump -Fc flowhq > flowhq.dump` / `pg_restore -d flowhq --clean flowhq.dump`. A restore drill is a TODO for M8.

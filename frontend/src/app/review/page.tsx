@@ -3,6 +3,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import { Alert, Avatar, Badge, Button, Card, Empty, Icon, Link, PageHeader, Skeleton, inputCls, pretty } from "@/components/ui";
+import { DictatedField } from "@/components/VoiceDictation";
 import { Campaign, Draft, api } from "@/lib/api";
 
 const tone = (s: string) => (s === "approved" || s === "sent" ? "success" : s === "needs_review" ? "warning" : s === "rejected" ? "danger" : "neutral") as any;
@@ -48,8 +49,8 @@ function Review() {
           <div className="space-y-4">
             <Card title={`${sel.lead?.name ?? sel.lead?.email} · ${sel.lead?.company ?? ""}`} actions={<div className="flex items-center gap-2"><Badge tone={tone(sel.status)}>{pretty(sel.status)}</Badge><Badge>{sel.source === "llm" ? "local model" : "template"}</Badge></div>}>
               {sel.edited_since_approval && <div className="mb-3"><Alert tone="info">Edited after approval. It must be approved again before it can send.</Alert></div>}
-              {sel.channel === "email" && <label className="mb-3 block text-sm font-medium">Subject<input className={`${inputCls} mt-1 font-normal`} value={subject} disabled={locked} onChange={(e) => setSubject(e.target.value)} /></label>}
-              <label className="block text-sm font-medium">{sel.channel === "email" ? "Body" : `${sel.channel} message (manual send)`}<textarea className={`${inputCls} mt-1 py-2 font-normal`} rows={sel.channel === "email" ? 10 : 5} value={body} disabled={locked} onChange={(e) => setBody(e.target.value)} /></label>
+              {sel.channel === "email" && <DictatedField className="mb-3" label="Subject" speak="subject" disabled={locked} value={subject} onChange={setSubject}><input className={inputCls} value={subject} disabled={locked} onChange={(e) => setSubject(e.target.value)} /></DictatedField>}
+              <DictatedField label={sel.channel === "email" ? "Body" : `${sel.channel} message (manual send)`} speak="message body" disabled={locked} value={body} onChange={setBody}><textarea className={`${inputCls} py-2`} rows={sel.channel === "email" ? 10 : 5} value={body} disabled={locked} onChange={(e) => setBody(e.target.value)} /></DictatedField>
               <div className="mt-1 text-xs text-muted-foreground">{sel.channel === "email" ? `${body.split(/\s+/).filter(Boolean).length} words` : `${body.length}/300 characters`}. {sel.channel === "email" ? "The unsubscribe link and postal address are added automatically when sending." : ""}</div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button disabled={!dirty || locked} onClick={() => run(() => api(`/messages/${sel.id}`, { method: "PATCH", json: { subject: sel.channel === "email" ? subject : null, body } }), "Saved and re-checked. Approval was cleared.")}>Save edits</Button>

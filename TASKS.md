@@ -84,6 +84,19 @@ Not covered yet: committed frontend/Playwright tests, real SMTP/LLM.
 - [ ] No Task entity (upcoming sends and manual queue stand in); no user/role management UI, data export/deletion, retention, webhook config
 - [ ] No login rate limiting; no Postgres RLS; no assignment of leads/conversations
 
+## Voice dictation (PRD: FlowHQ Voice Input) — MVP DONE, browser only
+- [x] `VoiceDictation` / `Dictatable` / `DictatedField` React components; MediaRecorder; states idle/recording/processing/review/error; Stop, Cancel, Escape; timer + auto-stop at the limit; microphone released on stop/cancel/unmount; permission requested only when the button is pressed
+- [x] Wired into: campaign form (objective, offer, tone, keywords), draft subject + body, inbox reply, pipeline notes; off where the field is locked. No task form exists yet, so none was wired.
+- [x] Review dialog: editable transcript, tidied/original versions with per-version edits kept, insert at cursor or append (never replaces), single-line fields collapse newlines, focus trap, never submits the surrounding form
+- [x] Backend: authenticated queued transcription (`voice_transcribe` job), magic-byte format check, size/duration/empty/rate limits, structured errors, `SpeechToText` adapter (`none`/`fake`/`openai_compat`), usage recorded, audio wiped in `finally`, retention purge, history list + clear
+- [x] Optional tidy-up through `call_llm` with untrusted-data delimiters and a deterministic guard (numbers, amounts, URLs, emails, month/day words, names, similarity); a rejected cleanup falls back to the raw transcript with a note
+- [x] Integrations card (on/off, local vs cloud, defaults, recent dictations, clear history), ADR-0002, `scripts/bench_stt.py` with an English/Hindi/Hinglish reading script
+- [x] Safety tests in `tests/safety/test_safety_voice.py`: auth + CSRF, audio never retained, never logged, never sends/schedules/drafts, cleanup cannot alter facts, workspace/user isolation
+- [x] Accessibility bug found in real Chrome and fixed: the field's accessible name no longer absorbs the microphone buttons' labels
+- [ ] **Hindi and Hinglish transcription quality NOT verified.** No Hindi voice, audio or Hindi-capable model was available where this was built. The plumbing (language codes, Roman-script prompt, script check, guard on Devanagari text) is unit-tested; accuracy must be measured with `scripts/bench_stt.py` on real recordings.
+- [ ] Browser-verified in Chrome only (fake microphone playing a synthesized English WAV, real faster-whisper `base` behind an OpenAI-style wrapper, a stub LLM for tidy-up). Safari (mp4/m4a) and Firefox (ogg) are untested. The `openai_compat` adapter is tested against a stub HTTP server, not a vendor's.
+- [ ] Not built (PRD future scope): streaming transcription, custom vocabulary, voice navigation and commands, desktop companion with global hotkeys, offline-only mode
+
 ## Declined by design
 - Browser agent that logs in to personal LinkedIn/Instagram and sends DMs: not built (platform terms, account-ban risk, PRD exclusion). Manual-assist queue instead.
 

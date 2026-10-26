@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import { Alert, Avatar, Badge, Button, Card, Empty, Link, PageHeader, Skeleton, inputCls, pretty } from "@/components/ui";
+import { Dictatable } from "@/components/VoiceDictation";
 import { api } from "@/lib/api";
 
 type Conv = { id: string; channel: string; subject: string | null; last_message_at: string; lead: { id: string; name: string; email: string; title: string | null; company: string | null; status: string };
@@ -54,7 +55,7 @@ export default function Inbox() {
             {d.channel === "email" && d.lead.status !== "unsubscribed" && d.lead.status !== "suppressed" && d.lead.status !== "bounced" ? (
               <Card title="Reply">
                 {lastIn?.suggested_reply && <div className="mb-2 rounded bg-muted p-2 text-xs"><b>Suggested (edit before sending):</b> {lastIn.suggested_reply} <button className="ml-1 text-primary underline" onClick={() => setReply(lastIn.suggested_reply!)}>Use</button></div>}
-                <textarea aria-label="Reply" className={`${inputCls} py-2`} rows={5} value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Write your reply. You review every word; nothing is auto-sent." />
+                <Dictatable label="reply" value={reply} onChange={setReply}><textarea aria-label="Reply" className={`${inputCls} py-2`} rows={5} value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Write your reply. You review every word; nothing is auto-sent." /></Dictatable>
                 <div className="mt-2"><Button variant="primary" disabled={!reply.trim()} onClick={() => run(() => api(`/conversations/${d.id}/reply`, { method: "POST", json: { body: reply } }), "Reply sent.")}>Send reply</Button></div></Card>
             ) : <Alert tone="info">Replying is disabled: this lead opted out, bounced, or the channel is manual.</Alert>}
             {d.messages.some((m) => m.simulated) && (<Card title="Sandbox tools (simulated provider only)">

@@ -37,7 +37,9 @@ def clean_db(migrated):
                        "import_batch, suppression_record, job, activity_log, audit_log, membership, user_account, workspace RESTART IDENTITY CASCADE"))
     from app.adapters.channels.base import MockAdapter
     from app.adapters.llm.base import set_llm_override
+    from app.adapters.stt.base import FakeSTT, set_stt_override
     MockAdapter.outbox.clear(); MockAdapter.fail_next.clear(); set_llm_override(None)
+    set_stt_override(None); FakeSTT.calls.clear()
     yield
 
 

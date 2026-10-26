@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Alert, Button, Card, Field, Input, inputCls } from "@/components/ui";
+import { DictatedField } from "@/components/VoiceDictation";
 import { Account, Campaign, api } from "@/lib/api";
 
 const list = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
@@ -41,13 +42,13 @@ export default function CampaignForm({ initial, onSaved }: { initial?: Campaign;
       <Card title="Offer & sender">
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Campaign name"><Input value={f.name} onChange={(e) => set("name", e.target.value)} required /></Field>
-          <Field label="Objective"><Input value={f.objective} onChange={(e) => set("objective", e.target.value)} /></Field>
-          <div className="md:col-span-2"><Field label="Offer (1–2 plain sentences, no claims you can't prove)" hint="This sentence goes into every message verbatim.">
-            <textarea className={`${inputCls} py-2`} rows={3} value={f.offer} onChange={(e) => set("offer", e.target.value)} required /></Field></div>
+          <DictatedField label="Objective" speak="objective" value={f.objective} onChange={(v) => set("objective", v)}><Input value={f.objective} onChange={(e) => set("objective", e.target.value)} /></DictatedField>
+          <div className="md:col-span-2"><DictatedField label="Offer (1–2 plain sentences, no claims you can't prove)" speak="offer" hint="This sentence goes into every message verbatim." value={f.offer} onChange={(v) => set("offer", v)}>
+            <textarea className={`${inputCls} py-2`} rows={3} value={f.offer} onChange={(e) => set("offer", e.target.value)} required /></DictatedField></div>
           <Field label="Sender name"><Input value={f.sender_name} onChange={(e) => set("sender_name", e.target.value)} /></Field>
           <Field label="Sender company"><Input value={f.sender_company} onChange={(e) => set("sender_company", e.target.value)} /></Field>
           <div className="md:col-span-2"><Field label="Physical postal address" hint="Required in the email footer (CAN-SPAM). Sending is blocked without it."><Input value={f.physical_address} onChange={(e) => set("physical_address", e.target.value)} /></Field></div>
-          <Field label="Tone"><Input value={f.tone} onChange={(e) => set("tone", e.target.value)} /></Field>
+          <DictatedField label="Tone" speak="tone" value={f.tone} onChange={(v) => set("tone", v)}><Input value={f.tone} onChange={(e) => set("tone", e.target.value)} /></DictatedField>
         </div>
       </Card>
       <Card title="Ideal customer profile (scoring)">
@@ -55,7 +56,7 @@ export default function CampaignForm({ initial, onSaved }: { initial?: Campaign;
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Target industries"><Input value={f.industries} onChange={(e) => set("industries", e.target.value)} placeholder="dental, clinic" /></Field>
           <Field label="Target regions (ISO codes)"><Input value={f.regions} onChange={(e) => set("regions", e.target.value)} placeholder="IN, US" /></Field>
-          <Field label="Service / pain-point keywords"><Input value={f.keywords} onChange={(e) => set("keywords", e.target.value)} placeholder="implants, orthodontics" /></Field>
+          <DictatedField label="Service / pain-point keywords" speak="keywords" value={f.keywords} onChange={(v) => set("keywords", v)}><Input value={f.keywords} onChange={(e) => set("keywords", e.target.value)} placeholder="implants, orthodontics" /></DictatedField>
           <Field label="Exclude if found"><Input value={f.exclude} onChange={(e) => set("exclude", e.target.value)} placeholder="franchise" /></Field>
           <Field label="Min. evidence items"><Input type="number" min={0} value={f.min_evidence} onChange={(e) => set("min_evidence", e.target.value)} /></Field>
           <div className="grid grid-cols-3 gap-2">

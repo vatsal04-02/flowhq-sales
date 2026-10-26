@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import { Alert, Avatar, Badge, Button, Card, Empty, Field, Input, Link, PageHeader, Skeleton, inputCls, pretty } from "@/components/ui";
+import { DictatedField } from "@/components/VoiceDictation";
 import { api } from "@/lib/api";
 
 type Opp = { id: string; stage: string; value: number | null; notes: string | null; next_action_at: string | null; lead: { id: string; name: string; email: string; company: string | null; outreach_status: string } };
@@ -45,7 +46,7 @@ export default function Pipeline() {
       {sel && (<div className="mt-4 max-w-xl"><Card title={`Deal: ${sel.lead.name}`} actions={<Link href={`/leads/${sel.lead.id}`} className="text-xs text-primary underline">Open lead</Link>}>
         <div className="grid gap-3"><Field label="Expected value"><Input type="number" min={0} value={value} onChange={(e) => setValue(e.target.value)} /></Field>
           <Field label="Next action"><Input type="datetime-local" value={next} onChange={(e) => setNext(e.target.value)} /></Field>
-          <Field label="Notes"><textarea className={`${inputCls} py-2`} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+          <DictatedField label="Notes" speak="notes" value={notes} onChange={setNotes}><textarea className={`${inputCls} py-2`} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} /></DictatedField>
           <div className="flex gap-2"><Button variant="primary" onClick={save}>Save</Button><Button onClick={() => setSel(null)}>Cancel</Button></div></div></Card></div>)}
     </Shell>
   );
