@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+.next/
+*.log
+flowhq-sales/
+*.whl
+*.tsbuildinfo
+.pytest_cache/
+.ruff_cache/

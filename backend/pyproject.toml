@@ -1,0 +1,21 @@
+[project]
+name = "flowhq-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi", "uvicorn[standard]", "sqlalchemy>=2", "psycopg[binary]", "alembic",
+  "pydantic-settings", "argon2-cffi", "cryptography", "python-multipart",
+  "email-validator", "phonenumbers", "httpx",
+]
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.ruff]
+line-length = 130
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["B008", "E741", "B904", "E701", "E702"]
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/*" = ["E501", "I001"]
+"tests/conftest.py" = ["E402", "E731"]

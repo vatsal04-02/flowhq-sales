@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens from design-system/flowhq-outreach-os/MASTER.md (Swiss/minimal, dense dashboard). */
+:root {
+  --background: 210 40% 98%;      /* #F8FAFC */
+  --foreground: 222 47% 11%;      /* near-black slate for 4.5:1+ body text */
+  --card: 0 0% 100%;
+  --muted: 218 40% 94%;           /* #E9EEF6 */
+  --muted-foreground: 215 19% 35%;/* #475569-ish, AA on card/background */
+  --border: 214 32% 88%;
+  --primary: 224 76% 40%;         /* #1E40AF */
+  --primary-foreground: 0 0% 100%;
+  --accent: 32 95% 44%;           /* amber highlight */
+  --destructive: 0 72% 45%;
+  --success: 142 64% 26%;
+  --warning: 32 90% 28%;
+  --ring: 224 76% 40%;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 222 30% 9%; --foreground: 210 40% 96%; --card: 222 28% 13%;
+    --muted: 220 22% 19%; --muted-foreground: 215 20% 72%; --border: 220 18% 24%;
+    --primary: 217 91% 68%; --primary-foreground: 222 47% 8%; --accent: 38 92% 56%;
+    --destructive: 0 90% 72%; --success: 142 60% 62%; --warning: 38 92% 66%; --ring: 217 91% 68%;
+  }
+}
+html { font-family: "Fira Sans", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 16px; }
+body { @apply bg-background text-foreground antialiased; line-height: 1.5; }
+code, .mono { font-family: "Fira Code", ui-monospace, monospace; }
+:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

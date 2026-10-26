@@ -1,0 +1,40 @@
+# Dev stack. NOTE: not yet verified in the authoring sandbox (no Docker daemon there); see TASKS.md.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: flowhq
+      POSTGRES_DB: flowhq
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowhq"]
+      interval: 5s
+      retries: 10
+  api:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports: ["${API_PORT:-8000}:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+  worker:
+    build: ./backend
+    command: python -m app.jobs.runner
+    env_file: .env
+    depends_on:
+      api: {condition: service_healthy}
+  web:
+    build: ./frontend
+    environment:
+      API_URL: http://api:8000
+    depends_on: [api]
+    ports: ["${WEB_PORT:-3000}:3000"]
+  mailpit:            # dev-only SMTP sink (used from M6)
+    image: axllent/mailpit
+    profiles: [dev]
+    ports: ["8025:8025", "1025:1025"]
+volumes:
+  pgdata:
