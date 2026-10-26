@@ -64,9 +64,13 @@ Not covered yet: committed frontend/Playwright tests, real Docker run, real SMTP
 - [x] Sequence scheduling, in-thread follow-ups, pause/resume (held not lost), daily limits defer
 - [x] Unsubscribe link + RFC 8058 header; GET never unsubscribes; reply opt-out is rule-based; bounce -> suppression
 - [x] Inbound matching by In-Reply-To then sender; duplicate events ignored; intent rules + optional model for "unclear"; human reclassify
-- [ ] **IMAP/real reply sync NOT built.** Only sandbox-simulated replies/bounces exist.
-- [ ] SMTP adapter never tested against a real or local SMTP server.
-- [ ] No delivery/bounce webhooks from real providers.
+- [x] **IMAP reply + bounce sync** (read-only, UID cursor, Message-ID dedupe, UIDVALIDITY handling, first-sync lookback, per-account polling by the worker, "check now", health shown in UI and dashboard)
+- [x] RFC 3464 delivery-status parsing + plain-text bounce heuristics; hard bounce suppresses, soft logged, unconfirmed pauses; auto-reply detection via headers; unmatched mail triage list
+- [x] SMTP adapter exercised against a real local SMTP server (aiosmtpd): headers, List-Unsubscribe, RCPT refusal -> hard bounce, outage -> retry -> exactly one send
+- [x] IMAP client cross-checked against an independent implementation (pymap) in addition to the in-repo fake server
+- [ ] Not verified against Gmail/Outlook/real providers (TLS, app passwords, folder quirks). Only INBOX is read; Spam/other folders are not.
+- [ ] No delivery-receipt (open/delivered) events: SMTP gives none. "Delivered" is not reported.
+- [ ] No IMAP IDLE (polls every IMAP_POLL_SECONDS, default 60)
 
 ## M7 Dashboard, inbox, pipeline — DONE (browser-tested)
 - [x] Dashboard with numerators/denominators/windows; real vs simulated vs manual sends separated
@@ -83,9 +87,10 @@ Not covered yet: committed frontend/Playwright tests, real Docker run, real SMTP
 - Browser agent that logs in to personal LinkedIn/Instagram and sends DMs: not built (platform terms, account-ban risk, PRD exclusion). Manual-assist queue instead.
 
 ## Verification (latest)
-- 73 backend tests (unit, integration, safety incl. 10k-row import), ruff clean; /analytics/timeseries covered
+- 103 backend tests (unit, integration incl. real SMTP + IMAP protocol, safety incl. 10k-row import), ruff clean
 - tsc clean, `next build` OK
 - Playwright journey (login → import → campaign → research → score → drafts → approve → launch → simulated reply → dashboard → pipeline), 375px no horizontal overflow, no console errors
-- NOT verified: Docker compose, GitHub CI, real SMTP, real Ollama, real IMAP
+- Browser journeys: sandbox flow, and real-mail flow (local SMTP + independent IMAP server + worker + UI)
+- NOT verified: Docker compose, GitHub CI, real Ollama, Gmail/Outlook/any hosted mailbox
 
 ## M8 Hardening — NOT STARTED (load tests, backup/restore drill, security review, deploy automation)

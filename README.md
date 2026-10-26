@@ -40,4 +40,10 @@ With `LLM_PROVIDER=none` (default) drafts use deterministic evidence-based templ
 2. Add an SMTP account in Integrations (app password), start with 20–30/day and ramp slowly. Gmail/Workspace have hard daily caps.
 3. Every campaign needs a physical postal address and gets a one-click unsubscribe link automatically.
 4. Check your legal position per recipient region (CAN-SPAM, GDPR/PECR, CASL, India DPDP). EU/UK/CA regions are blocked by default.
-5. Reply detection for real mailboxes (IMAP) is **not built yet**: until then, replies from real recipients must be handled in your mailbox. The sandbox simulates replies.
+5. **Reply detection (IMAP).** In Integrations → Add SMTP, also fill the IMAP section (e.g. Gmail/Workspace: `imap.gmail.com`, port 993, SSL, an *app password*; IMAP must be enabled in the mailbox settings). FlowHQ then checks the INBOX about once a minute (or press "Check mailbox now"):
+   - it is **read-only**: mail is opened with EXAMINE and BODY.PEEK, so nothing is marked as read, moved or deleted;
+   - replies are matched by `In-Reply-To`/`References`, then by sender; mail that matches no lead is listed in the Inbox ("could not be matched") and changes nothing;
+   - opt-outs ("unsubscribe", "remove me") suppress immediately; out-of-office auto-replies are recognised from headers and never stop the sequence or count as replies;
+   - permanent bounces (5.x.x) suppress the address and stop follow-ups; temporary ones (4.x.x) are only logged; unclear bounce notices pause the sequence without suppressing;
+   - the first check only looks at the last 7 days, then follows a UID cursor; a mailbox that cannot be reached is shown on the Integrations page and the dashboard, and nothing is lost while it is down.
+   Not covered: replies filed into Spam or other folders (only INBOX is read), OAuth-only mailboxes (use an app password), threads that lose their `In-Reply-To` header and come from a different address than the lead's.

@@ -302,6 +302,7 @@ class ChannelAccount(Base, Timestamps):
     daily_limit: Mapped[int] = mapped_column(Integer, default=30)
     status: Mapped[str] = mapped_column(String(20), default="active")
     health: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    sync_state: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))  # IMAP cursor: uidvalidity, last_uid, next_at
 
 
 class Conversation(Base, Timestamps):
@@ -340,6 +341,7 @@ class Message(Base, Timestamps):
     provider_message_id: Mapped[str | None] = mapped_column(String(300))
     message_id_header: Mapped[str | None] = mapped_column(String(300))
     in_reply_to: Mapped[str | None] = mapped_column(String(300))
+    peer: Mapped[str | None] = mapped_column(String(320))  # sender address of an inbound message
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     intent: Mapped[str | None] = mapped_column(String(30))

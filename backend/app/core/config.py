@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     public_base_url: str = "http://localhost:3000"  # used in unsubscribe links
     allow_private_fetch: bool = False  # tests only: lets the research fetcher reach localhost
+    imap_poll_seconds: int = 60
+    imap_lookback_days: int = 7  # first sync only looks this far back
+    imap_max_per_sync: int = 100
     research_max_pages: int = 4
     research_ttl_days: int = 30
     fetch_user_agent: str = "FlowHQBot/0.1 (+sales research; respects robots.txt)"

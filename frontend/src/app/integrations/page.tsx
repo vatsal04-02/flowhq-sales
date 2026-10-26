@@ -8,9 +8,9 @@ type Data = { accounts: Account[]; llm: Record<string, any>; llm_usage: { calls:
 
 export default function Integrations() {
   const [d, setD] = useState<Data | null>(null); const [error, setError] = useState<string | null>(null); const [note, setNote] = useState<string | null>(null);
-  const [f, setF] = useState({ name: "", from_email: "", host: "", port: "587", username: "", password: "", security: "starttls", daily_limit: "30" }); const [show, setShow] = useState(false);
+  const [f, setF] = useState({ name: "", from_email: "", host: "", port: "587", username: "", password: "", security: "starttls", daily_limit: "30", imap_host: "", imap_port: "993", imap_username: "", imap_password: "", imap_security: "ssl" }); const [show, setShow] = useState(false);
   const load = useCallback(() => api<Data>("/integrations").then(setD).catch((e) => setError(e.message)), []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load]);
   async function run(fn: () => Promise<unknown>, ok?: string) { setError(null); setNote(null); try { await fn(); if (ok) setNote(ok); await load(); } catch (e: any) { setError(e.message); } }
   const llmTone = (s: string) => (s === "ok" ? "success" : s === "templates_only" ? "info" : "warning") as any;
   return (
@@ -34,10 +34,15 @@ export default function Integrations() {
               <ul className="divide-y divide-border text-sm">{d.accounts.map((a) => (<li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div><div className="font-medium">{a.name} {a.simulated && <Badge tone="warning">simulated: no real email</Badge>}</div>
                   <div className="text-xs text-muted-foreground">{a.from_email} · {a.daily_limit}/day · {a.capabilities.can_send ? "can send" : "cannot send"}</div>
-                  {a.health?.ok !== undefined && <div className={`text-xs ${a.health.ok ? "text-success" : "text-destructive"}`}>{a.health.ok ? "Connection OK" : `Connection failed: ${a.health.error}`}</div>}</div>
+                  {a.health?.smtp && <div className={`text-xs ${a.health.smtp.ok ? "text-success" : "text-destructive"}`}>Sending: {a.health.smtp.ok ? "connection OK" : `failed: ${a.health.smtp.error}`}</div>}
+                  {a.provider === "smtp" && (a.reply_sync.enabled ? (
+                    <div className={`text-xs ${a.reply_sync.ok === false ? "text-destructive" : "text-muted-foreground"}`}>
+                      Replies: {a.reply_sync.ok === false ? `mailbox check failing: ${a.reply_sync.error}` : a.reply_sync.checked_at ? `read-only sync OK, last checked ${new Date(a.reply_sync.checked_at).toLocaleTimeString()} (${a.reply_sync.new ?? 0} new)` : "waiting for first check…"}</div>
+                  ) : <div className="text-xs text-warning">Replies: not connected. Add IMAP settings so replies and bounces are detected automatically.</div>)}</div>
                 <div className="flex gap-2"><Badge tone={a.status === "active" ? "success" : "neutral"}>{a.status}</Badge>
-                  {a.status === "active" && <><Button variant="ghost" onClick={() => run(() => api(`/integrations/${a.id}/test`, { method: "POST" }))}>Test</Button><Button variant="ghost" onClick={() => { if (confirm("Disable this account and delete its stored credentials?")) run(() => api(`/integrations/${a.id}`, { method: "DELETE" })); }}>Remove</Button></>}</div></li>))}</ul>)}
-            {show && (<form className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-2" onSubmit={(e) => { e.preventDefault(); run(async () => { await api("/integrations/smtp", { method: "POST", json: { ...f, port: +f.port, daily_limit: +f.daily_limit } }); setShow(false); setF({ ...f, password: "" }); }, "SMTP account saved. Credentials are encrypted and never shown again."); }}>
+                  {a.status === "active" && <><Button variant="ghost" onClick={() => run(() => api(`/integrations/${a.id}/test`, { method: "POST" }), "Connection test finished.")}>Test</Button>
+                  {a.reply_sync.enabled && <Button variant="ghost" onClick={() => run(() => api(`/integrations/${a.id}/sync`, { method: "POST" }), "Mailbox check queued. Replies appear in the inbox in a few seconds.")}>Check mailbox now</Button>}<Button variant="ghost" onClick={() => { if (confirm("Disable this account and delete its stored credentials?")) run(() => api(`/integrations/${a.id}`, { method: "DELETE" })); }}>Remove</Button></>}</div></li>))}</ul>)}
+            {show && (<form className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-2" onSubmit={(e) => { e.preventDefault(); run(async () => { await api("/integrations/smtp", { method: "POST", json: { ...f, port: +f.port, daily_limit: +f.daily_limit, imap_port: +f.imap_port } }); setShow(false); setF({ ...f, password: "", imap_password: "" }); }, "SMTP account saved. Credentials are encrypted and never shown again."); }}>
               <Field label="Name"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></Field>
               <Field label="From address"><Input type="email" value={f.from_email} onChange={(e) => setF({ ...f, from_email: e.target.value })} required /></Field>
               <Field label="SMTP host"><Input value={f.host} onChange={(e) => setF({ ...f, host: e.target.value })} required /></Field>
@@ -46,6 +51,13 @@ export default function Integrations() {
               <Field label="Password / app password"><Input type="password" autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
               <Field label="Security"><select className={inputCls} value={f.security} onChange={(e) => setF({ ...f, security: e.target.value })}><option value="starttls">STARTTLS</option><option value="ssl">SSL/TLS</option><option value="none">None (local testing only)</option></select></Field>
               <Field label="Daily limit" hint="Start at 20–30 per mailbox and ramp slowly."><Input type="number" value={f.daily_limit} onChange={(e) => setF({ ...f, daily_limit: e.target.value })} /></Field>
+              <div className="md:col-span-2 border-t border-border pt-3"><div className="text-sm font-semibold">Reply detection (IMAP, optional but recommended)</div>
+                <p className="text-xs text-muted-foreground">Lets FlowHQ notice replies, out-of-office notices, opt-outs and bounces automatically. It only <b>reads</b> your inbox: it never marks mail as read, moves or deletes anything. Leave the host empty to skip.</p></div>
+              <Field label="IMAP host"><Input value={f.imap_host} onChange={(e) => setF({ ...f, imap_host: e.target.value })} placeholder="imap.gmail.com" /></Field>
+              <Field label="IMAP port"><Input type="number" value={f.imap_port} onChange={(e) => setF({ ...f, imap_port: e.target.value })} /></Field>
+              <Field label="IMAP username" hint="Leave empty to reuse the SMTP username"><Input autoComplete="off" value={f.imap_username} onChange={(e) => setF({ ...f, imap_username: e.target.value })} /></Field>
+              <Field label="IMAP password" hint="Leave empty to reuse the SMTP password"><Input type="password" autoComplete="new-password" value={f.imap_password} onChange={(e) => setF({ ...f, imap_password: e.target.value })} /></Field>
+              <Field label="IMAP security"><select className={inputCls} value={f.imap_security} onChange={(e) => setF({ ...f, imap_security: e.target.value })}><option value="ssl">SSL/TLS (993)</option><option value="starttls">STARTTLS (143)</option><option value="none">None (local testing only)</option></select></Field>
               <div className="md:col-span-2"><Button variant="primary">Save account</Button></div></form>)}
           </Card>
           <Card title="LinkedIn & Instagram">

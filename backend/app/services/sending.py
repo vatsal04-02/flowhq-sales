@@ -189,8 +189,9 @@ def process_action(db: Session, a: ScheduledAction, now: datetime) -> None:
     acct = _account_for(db, camp)
     caps = capabilities_for(a.channel, acct.provider if acct else None)
     sup = SuppressionRepo(db, a.workspace_id).is_suppressed(lead.email_norm, lead.phone_e164)
-    replied = db.scalar(select(func.count()).select_from(Message).where(
-        Message.lead_id == lead.id, Message.direction == "in", Message.campaign_id == camp.id)) > 0
+    replied = db.scalar(select(func.count()).select_from(Message).where(   # an out-of-office auto-reply is not a reply
+        Message.lead_id == lead.id, Message.direction == "in", Message.campaign_id == camp.id,
+        Message.intent.is_distinct_from("out_of_office"))) > 0
     gate = GateInput(
         now=now, kill_switch=ws.kill_switch, campaign_status=camp.status, campaign_lead_state=cl.state if cl else "active",
         lead_status=lead.status, lead_opted_out=lead.opted_out, lead_region=lead.region, blocked_regions=camp.blocked_regions or [],

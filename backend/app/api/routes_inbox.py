@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.adapters.channels.base import Outbound, SendError, adapter_for, capabilities_for
+from app.adapters.channels.imap import ImapError
 from app.api.deps import Ctx, err, get_ctx, require_admin
 from app.core.config import get_settings
 from app.core.crypto import decrypt, encrypt
@@ -28,10 +29,11 @@ from app.models import (
     Lead,
     Message,
     Opportunity,
+    ProviderEvent,
     Workspace,
 )
 from app.repos.suppression import SuppressionRepo
-from app.services import analytics, replies, sending
+from app.services import analytics, mailsync, replies, sending
 from app.services.audit import activity, audit
 
 router = APIRouter()
@@ -74,7 +76,7 @@ def conversation(cid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
     camp = ctx.db.get(Campaign, c.campaign_id) if c.campaign_id else None
     return {**_conv_dict(ctx.db, c, lead, co, None), "campaign": camp.name if camp else None, "intents": [r[0] for r in I.RULES] + ["unclear"],
             "messages": [{"id": str(m.id), "direction": m.direction, "subject": m.subject, "body": m.body, "state": m.state, "simulated": m.simulated,
-                          "manual": m.manual, "at": m.sent_at or m.created_at, "intent": m.intent, "intent_confidence": m.intent_confidence,
+                          "manual": m.manual, "peer": m.peer, "at": m.sent_at or m.created_at, "intent": m.intent, "intent_confidence": m.intent_confidence,
                           "intent_source": m.intent_source, "suggested_reply": m.suggested_reply, "error": m.error} for m in msgs]}
 
 
@@ -264,13 +266,23 @@ class SMTPIn(BaseModel):
     password: str = ""
     security: str = Field("starttls", pattern="^(starttls|ssl|none)$")
     daily_limit: int = Field(30, ge=1, le=2000)
+    # optional: read replies and bounces from this mailbox (IMAP). Read-only; mail is never marked read, moved or deleted.
+    imap_host: str = ""
+    imap_port: int = 993
+    imap_username: str = ""  # defaults to the SMTP username
+    imap_password: str = ""  # defaults to the SMTP password
+    imap_security: str = Field("ssl", pattern="^(starttls|ssl|none)$")
 
 
 def _acct_dict(a: ChannelAccount) -> dict:
     caps = capabilities_for(a.channel, a.provider)
+    reply_sync = mailsync.imap_config(a) is not None
+    imap_h = (a.health or {}).get("imap") or {}
     return {"id": str(a.id), "provider": a.provider, "channel": a.channel, "name": a.name, "from_email": a.from_email, "status": a.status,
             "daily_limit": a.daily_limit, "health": a.health, "simulated": a.provider == "mock",
-            "capabilities": {"can_send": caps.can_send, "can_receive": caps.can_receive, "syncs_delivery": caps.syncs_delivery}}
+            "capabilities": {"can_send": caps.can_send, "can_receive": caps.can_receive or reply_sync or a.provider == "mock", "syncs_delivery": caps.syncs_delivery},
+            "reply_sync": {"enabled": reply_sync, "ok": imap_h.get("ok"), "error": imap_h.get("error"), "checked_at": imap_h.get("checked_at"),
+                           "new": imap_h.get("new"), "last_uid": (a.sync_state or {}).get("last_uid")}}
 
 
 def _llm_health() -> dict:
@@ -313,21 +325,34 @@ def add_smtp(body: SMTPIn, ctx: Ctx = Depends(require_admin)):
     from app.domain.normalize import normalize_email
     if not normalize_email(body.from_email):
         raise err(422, "bad_email", "from_email is not a valid address")
-    creds = encrypt(json.dumps({k: getattr(body, k) for k in ("host", "port", "username", "password", "security")}))
+    payload = {k: getattr(body, k) for k in ("host", "port", "username", "password", "security")}
+    if body.imap_host.strip():
+        payload["imap"] = {"host": body.imap_host.strip(), "port": body.imap_port, "username": body.imap_username or body.username,
+                           "password": body.imap_password or body.password, "security": body.imap_security}
+    creds = encrypt(json.dumps(payload))
     a = ChannelAccount(workspace_id=ctx.workspace_id, provider="smtp", name=body.name, from_email=body.from_email, credentials_enc=creds, daily_limit=body.daily_limit)
     ctx.db.add(a)
-    audit(ctx.db, ctx.workspace_id, ctx.user.id, "integration.add", "smtp", host=body.host)
+    audit(ctx.db, ctx.workspace_id, ctx.user.id, "integration.add", "smtp", host=body.host, reply_sync=bool(body.imap_host.strip()))
+    if body.imap_host.strip():
+        mailsync.enqueue_sync(ctx.db, a)  # first sync sets the cursor; only the last few days are looked at
     ctx.db.commit()
     return _acct_dict(a)
 
 
-@router.post("/integrations/{aid}/test")
-def test_account(aid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
+def _acct(ctx: Ctx, aid: uuid.UUID) -> ChannelAccount:
     a = ctx.db.scalars(select(ChannelAccount).where(ChannelAccount.id == aid, ChannelAccount.workspace_id == ctx.workspace_id)).first()
     if not a:
         raise err(404, "not_found", "account not found")
+    return a
+
+
+@router.post("/integrations/{aid}/test")
+def test_account(aid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
+    a = _acct(ctx, aid)
+    now = datetime.now(timezone.utc).isoformat()
+    h = dict(a.health or {})
     if a.provider == "mock":
-        a.health = {"ok": True, "checked_at": datetime.now(timezone.utc).isoformat(), "note": "sandbox"}
+        h["smtp"] = {"ok": True, "checked_at": now, "note": "sandbox"}
     else:
         c = json.loads(decrypt(a.credentials_enc))
         try:
@@ -337,11 +362,39 @@ def test_account(aid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
                     srv.starttls(context=ssl.create_default_context())
                 if c.get("username"):
                     srv.login(c["username"], c["password"])
-            a.health = {"ok": True, "checked_at": datetime.now(timezone.utc).isoformat()}
+            h["smtp"] = {"ok": True, "checked_at": now}
         except (smtplib.SMTPException, OSError) as e:
-            a.health = {"ok": False, "error": str(e)[:200], "checked_at": datetime.now(timezone.utc).isoformat()}
+            h["smtp"] = {"ok": False, "error": str(e)[:200], "checked_at": now}
+        if c.get("imap"):
+            try:
+                n = mailsync.client_for(c["imap"]).check()
+                h["imap"] = {**(h.get("imap") or {}), "ok": True, "error": None, "checked_at": now, "inbox_messages": n}
+            except ImapError as e:
+                h["imap"] = {**(h.get("imap") or {}), "ok": False, "error": str(e)[:200], "checked_at": now}
+    a.health = h
     ctx.db.commit()
-    return a.health
+    return h
+
+
+@router.post("/integrations/{aid}/sync")
+def sync_now(aid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
+    """Queue a mailbox check now (the worker also polls on its own)."""
+    a = _acct(ctx, aid)
+    if mailsync.imap_config(a) is None:
+        raise err(409, "no_imap", "this account has no IMAP (reply sync) settings")
+    job = mailsync.enqueue_sync(ctx.db, a, force=True)
+    ctx.db.commit()
+    return {"queued": True, "job_id": str(job.id) if job else None}
+
+
+@router.get("/inbox/unmatched")
+def unmatched(limit: int = Query(50, le=200), ctx: Ctx = Depends(get_ctx)):
+    """Mail that arrived in a connected mailbox but could not be tied to any lead in this workspace."""
+    rows = ctx.db.scalars(select(ProviderEvent).where(ProviderEvent.workspace_id == ctx.workspace_id,
+                                                        ProviderEvent.kind.in_(["reply_unmatched", "bounce_unmatched"]))
+                          .order_by(ProviderEvent.created_at.desc()).limit(limit))
+    return [{"id": str(e.id), "kind": e.kind, "received_at": e.created_at, "from": e.payload.get("from") or e.payload.get("email"),
+             "subject": e.payload.get("subject")} for e in rows]
 
 
 @router.delete("/integrations/{aid}")

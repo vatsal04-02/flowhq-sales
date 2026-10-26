@@ -59,4 +59,7 @@ export type Draft = {
   source: string; status: string; edited_since_approval?: boolean; evidence?: Evidence[];
   lead?: { id: string; name: string | null; title: string | null; email: string | null; company: string | null; domain: string | null; linkedin_url: string | null; instagram_url: string | null; region: string | null };
 };
-export type Account = { id: string; provider: string; name: string; from_email: string; status: string; daily_limit: number; health: Record<string, any>; simulated: boolean; capabilities: Record<string, boolean> };
+export type Account = {
+  id: string; provider: string; name: string; from_email: string; status: string; daily_limit: number; health: Record<string, any>; simulated: boolean; capabilities: Record<string, boolean>;
+  reply_sync: { enabled: boolean; ok: boolean | null; error: string | null; checked_at: string | null; new: number | null; last_uid: number | null };
+};

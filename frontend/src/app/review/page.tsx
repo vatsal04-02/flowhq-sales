@@ -34,7 +34,7 @@ function Review() {
         {campaign && <Button variant="primary" onClick={() => run(() => api(`/campaigns/${campaign}/approve`, { method: "POST", json: { all_clean: true } }), "Approved every clean draft. Drafts with errors or no evidence were left for you.")}>Approve all clean drafts</Button>}
       </PageHeader>
       {error && <div className="mb-3"><Alert>{error}</Alert></div>}{note && <div className="mb-3"><Alert tone="success">{note}</Alert></div>}
-      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_1fr]">
         <div className="rounded-xl border border-border bg-card shadow-card">
           {!items ? <Skeleton /> : items.length === 0 ? <Empty icon="edit" title="No drafts">Generate drafts from a <Link className="text-primary underline" href="/campaigns">campaign</Link>.</Empty> : (
             <ul className="max-h-[70vh] divide-y divide-border overflow-y-auto">{items.map((d) => (<li key={d.id}>
@@ -44,7 +44,7 @@ function Review() {
                 <div className="truncate text-xs text-muted-foreground">{d.lead?.company} · {d.channel} · {d.step === 0 ? "first message" : `follow-up ${d.step}`}</div>
                 {d.quality.errors.length > 0 && <div className="mt-0.5 text-xs text-destructive">{d.quality.errors.length} problem(s)</div>}</div></div></button></li>))}</ul>)}
         </div>
-        <div>{!sel ? <div className="rounded-xl border border-border bg-card shadow-card"><Empty icon="edit" title="Select a draft to review">Check the evidence, edit if needed, then approve. Nothing is sent without approval.</Empty></div> : (
+        <div className="min-w-0">{!sel ? <div className="rounded-xl border border-border bg-card shadow-card"><Empty icon="edit" title="Select a draft to review">Check the evidence, edit if needed, then approve. Nothing is sent without approval.</Empty></div> : (
           <div className="space-y-4">
             <Card title={`${sel.lead?.name ?? sel.lead?.email} · ${sel.lead?.company ?? ""}`} actions={<div className="flex items-center gap-2"><Badge tone={tone(sel.status)}>{pretty(sel.status)}</Badge><Badge>{sel.source === "llm" ? "local model" : "template"}</Badge></div>}>
               {sel.edited_since_approval && <div className="mb-3"><Alert tone="info">Edited after approval. It must be approved again before it can send.</Alert></div>}
@@ -68,7 +68,7 @@ function Review() {
                 <ul className="space-y-3 text-sm">{sel.claims.map((c, i) => { const ev = sel.evidence?.find((e) => e.id === c.evidence_id); return (<li key={i} className="rounded-lg border border-border bg-muted/30 p-2.5">
                   <div>Claim: <b>{c.text}</b></div>
                   <blockquote className="mt-1 border-l-2 border-primary pl-2 text-muted-foreground">“{ev?.excerpt ?? c.quote}”</blockquote>
-                  {ev && <a className="mt-1 inline-flex items-center gap-1 text-xs text-primary underline" href={ev.url} target="_blank" rel="noopener noreferrer"><Icon name="external" className="h-3 w-3" />{ev.url}</a>}
+                  {ev && <a className="mt-1 inline-flex max-w-full items-center gap-1 break-all text-xs text-primary underline" href={ev.url} target="_blank" rel="noopener noreferrer"><Icon name="external" className="h-3 w-3" />{ev.url}</a>}
                   {ev && <div className="mt-1 flex gap-2"><Badge tone="success">{ev.kind}</Badge><Badge>{ev.confidence} confidence</Badge></div>}</li>); })}</ul>)}
             </Card>
           </div>)}</div>

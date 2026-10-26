@@ -8,7 +8,7 @@ dependencies = [
   "email-validator", "phonenumbers", "httpx",
 ]
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "ruff", "aiosmtpd", "pymap"]
 
 [tool.ruff]
 line-length = 160

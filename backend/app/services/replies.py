@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.adapters.llm.base import LLMUnavailable, call_llm
 from app.domain import intent as I
+from app.domain.normalize import normalize_email
 from app.domain.states import can_transition
 from app.models import Conversation, Lead, Message, Opportunity, ProviderEvent
 from app.services import sending
@@ -58,9 +59,11 @@ def apply_intent(db: Session, workspace_id: uuid.UUID, lead: Lead, intent: str, 
 
 
 def ingest_inbound(db: Session, workspace_id: uuid.UUID, *, provider: str, external_id: str, from_email: str,
-                   subject: str | None, body: str, in_reply_to: str | None = None, simulated: bool = False) -> Message | None:
-    """Idempotent: a duplicate delivery of the same external_id is ignored. Unmatched mail is kept for triage."""
-    ev = ProviderEvent(workspace_id=workspace_id, provider=provider, external_id=external_id, kind="reply",
+                   subject: str | None, body: str, in_reply_to: str | None = None, simulated: bool = False,
+                   references: list[str] | None = None, auto_submitted: bool = False) -> Message | None:
+    """Idempotent: a duplicate delivery of the same external_id is ignored. Unmatched mail is kept for triage.
+    Matching is always scoped to this workspace: mail can never attach to another workspace's lead."""
+    ev = ProviderEvent(workspace_id=workspace_id, provider=provider, external_id=external_id[:300], kind="reply",
                        payload={"from": from_email, "subject": subject, "in_reply_to": in_reply_to})
     try:
         with db.begin_nested():
@@ -69,12 +72,13 @@ def ingest_inbound(db: Session, workspace_id: uuid.UUID, *, provider: str, exter
     except IntegrityError:
         return None  # duplicate delivery
     conv = None
-    if in_reply_to:
-        orig = db.scalars(select(Message).where(Message.workspace_id == workspace_id, Message.message_id_header == in_reply_to)).first()
-        conv = db.get(Conversation, orig.conversation_id) if orig else None
+    for ref in ([in_reply_to] if in_reply_to else []) + list(reversed(references or [])):  # newest reference first
+        orig = db.scalars(select(Message).where(Message.workspace_id == workspace_id, Message.message_id_header == ref)).first()
+        if orig:
+            conv = db.get(Conversation, orig.conversation_id)
+            break
     lead = db.get(Lead, conv.lead_id) if conv else None
     if lead is None:
-        from app.domain.normalize import normalize_email
         em = normalize_email(from_email)
         lead = db.scalars(select(Lead).where(Lead.workspace_id == workspace_id, Lead.email_norm == em,
                                              Lead.deleted_at.is_(None))).first() if em else None
@@ -83,11 +87,14 @@ def ingest_inbound(db: Session, workspace_id: uuid.UUID, *, provider: str, exter
     if lead is None or conv is None or lead.workspace_id != workspace_id:
         ev.kind = "reply_unmatched"
         return None
-    intent, conf, src = classify_text(db, workspace_id, body)
+    if auto_submitted:  # headers say a machine wrote this: never treat the text as an opt-out or interest signal
+        intent, conf, src = "out_of_office", 90, "headers"
+    else:
+        intent, conf, src = classify_text(db, workspace_id, body)
     msg = Message(workspace_id=workspace_id, conversation_id=conv.id, lead_id=lead.id, campaign_id=conv.campaign_id,
                   direction="in", channel=conv.channel, subject=subject, body=body, state="received", simulated=simulated,
-                  in_reply_to=in_reply_to, sent_at=datetime.now(timezone.utc), intent=intent, intent_confidence=conf,
-                  intent_source=src, suggested_reply=I.SUGGESTED.get(intent) or None)
+                  in_reply_to=in_reply_to, peer=(from_email or None) and from_email[:320], sent_at=datetime.now(timezone.utc), intent=intent,
+                  intent_confidence=conf, intent_source=src, suggested_reply=I.SUGGESTED.get(intent) or None)
     db.add(msg)
     conv.last_message_at = msg.sent_at
     ev.processed_at = msg.sent_at
@@ -97,22 +104,38 @@ def ingest_inbound(db: Session, workspace_id: uuid.UUID, *, provider: str, exter
     return msg
 
 
-def ingest_bounce(db: Session, workspace_id: uuid.UUID, *, provider: str, external_id: str, email: str) -> bool:
-    ev = ProviderEvent(workspace_id=workspace_id, provider=provider, external_id=external_id, kind="bounce", payload={"email": email})
+def ingest_bounce(db: Session, workspace_id: uuid.UUID, *, provider: str, external_id: str, email: str | None = None,
+                  original_message_id: str | None = None, permanent: bool | None = True) -> bool:
+    """permanent=True suppresses; False (temporary) is only logged; None (unknown) pauses the sequence for a human to look."""
+    ev = ProviderEvent(workspace_id=workspace_id, provider=provider, external_id=external_id[:300], kind="bounce",
+                       payload={"email": email, "original": original_message_id, "permanent": permanent})
     try:
         with db.begin_nested():
             db.add(ev)
             db.flush()
     except IntegrityError:
         return False
-    from app.domain.normalize import normalize_email
-    em = normalize_email(email)
-    lead = db.scalars(select(Lead).where(Lead.workspace_id == workspace_id, Lead.email_norm == em)).first() if em else None
-    if em:
-        sending.SuppressionRepo(db, workspace_id).add("email", em, "bounce", f"{provider}:{external_id}")
-    if lead:
-        sending.handle_bounce(db, workspace_id, lead, f"{provider} bounce event")
+    lead = None
+    if original_message_id:
+        orig = db.scalars(select(Message).where(Message.workspace_id == workspace_id, Message.message_id_header == original_message_id,
+                                                Message.direction == "out")).first()
+        lead = db.get(Lead, orig.lead_id) if orig else None
+    em = normalize_email(email) if email else None
+    if lead is None and em:
+        lead = db.scalars(select(Lead).where(Lead.workspace_id == workspace_id, Lead.email_norm == em, Lead.deleted_at.is_(None))).first()
     ev.processed_at = datetime.now(timezone.utc)
+    if lead is None:
+        ev.kind = "bounce_unmatched"
+        return True
+    if permanent is True:
+        sending.handle_bounce(db, workspace_id, lead, f"{provider} bounce")
+        if em and em != lead.email_norm:  # the failing address is not the lead's own: suppress that address too
+            sending.SuppressionRepo(db, workspace_id).add("email", em, "bounce", f"{provider}:{external_id}"[:300])
+    elif permanent is False:
+        activity(db, workspace_id, lead.id, "email.delayed", provider=provider)  # temporary failure: provider keeps retrying
+    else:
+        sending.stop_sequences(db, workspace_id, lead.id, "bounce_unconfirmed")
+        activity(db, workspace_id, lead.id, "email.bounce_unconfirmed", provider=provider)
     return True
 
 

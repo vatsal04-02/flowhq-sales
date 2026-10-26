@@ -6,7 +6,7 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
 from app.domain.intent import POSITIVE
-from app.models import AIUsageRecord, Campaign, Job, Lead, Message, Opportunity, ScheduledAction
+from app.models import AIUsageRecord, Campaign, ChannelAccount, Job, Lead, Message, Opportunity, ScheduledAction
 
 STAGES = ["new", "qualified", "contacted", "engaged", "meeting_booked", "proposal", "won", "lost"]
 
@@ -43,7 +43,7 @@ def overview(db: Session, ws: uuid.UUID, campaign_id: uuid.UUID | None = None, d
     sent_sim = msgs("out", Message.state == "sent", Message.simulated.is_(True))
     sent_manual = msgs("out", Message.state == "sent", Message.manual.is_(True))
     contacted = msgs("out", Message.state == "sent", distinct_leads=True)
-    replied = msgs("in", distinct_leads=True)
+    replied = msgs("in", Message.intent.is_distinct_from("out_of_office"), distinct_leads=True)  # auto-replies are not replies
     positive = msgs("in", Message.intent.in_(list(POSITIVE)), distinct_leads=True)
     unsub = lead_count(Lead.status == "unsubscribed")
     bounced = lead_count(Lead.status == "bounced")
@@ -115,7 +115,9 @@ def needs_attention(db: Session, ws: uuid.UUID) -> dict:
     upcoming = db.scalar(select(func.count()).select_from(ScheduledAction).where(
         ScheduledAction.workspace_id == ws, ScheduledAction.state == "pending")) or 0
     llm_fail = db.scalar(select(func.count()).select_from(AIUsageRecord).where(AIUsageRecord.workspace_id == ws, AIUsageRecord.ok.is_(False))) or 0
-    return {"failed_jobs": failed_jobs, "failed_actions": failed_actions, "drafts_to_review": review,
+    mailbox_errors = sum(1 for a in db.scalars(select(ChannelAccount).where(ChannelAccount.workspace_id == ws, ChannelAccount.status == "active"))
+                         if ((a.health or {}).get("imap") or {}).get("ok") is False)
+    return {"mailbox_errors": mailbox_errors, "failed_jobs": failed_jobs, "failed_actions": failed_actions, "drafts_to_review": review,
             "positive_replies": positive, "upcoming_sends": upcoming, "llm_failures": llm_fail}
 
 
@@ -135,7 +137,7 @@ def timeseries(db: Session, ws: uuid.UUID, days: int = 30) -> list[dict]:
             continue
         if direction == "out":
             d["sent"] += n
-        else:
+        elif intent != "out_of_office":
             d["replies"] += n
             if intent in POSITIVE:
                 d["positive"] += n

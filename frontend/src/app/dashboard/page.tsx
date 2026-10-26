@@ -5,7 +5,7 @@ import { Alert, AreaChart, Avatar, Badge, Card, Donut, Empty, Funnel, Icon, Link
 import { api, Metric, Overview } from "@/lib/api";
 
 type Camp = { id: string; name: string; status: string; contacted: number; sent: number; reply_rate: Metric; positive_reply_rate: Metric };
-type Attn = { failed_jobs: number; failed_actions: number; drafts_to_review: number; positive_replies: number; upcoming_sends: number; llm_failures: number };
+type Attn = { mailbox_errors: number; failed_jobs: number; failed_actions: number; drafts_to_review: number; positive_replies: number; upcoming_sends: number; llm_failures: number };
 type Day = { date: string; sent: number; replies: number; positive: number };
 
 const ICP_COLOR: Record<string, number> = { strong: 1, possible: 0, weak: 3, unqualified: 5, insufficient: 2, "not scored": 4 };
@@ -34,6 +34,7 @@ export default function Dashboard() {
     attn.positive_replies > 0 && { href: "/inbox", tone: "border-success/30 bg-success/10", icon: "inbox", text: <><b>{attn.positive_replies}</b> positive repl{attn.positive_replies === 1 ? "y" : "ies"} waiting</> },
     attn.drafts_to_review > 0 && { href: "/review", tone: "border-primary/30 bg-primary/10", icon: "edit", text: <><b>{attn.drafts_to_review}</b> draft{attn.drafts_to_review === 1 ? "" : "s"} to review</> },
     attn.failed_actions > 0 && { href: "/jobs", tone: "border-destructive/30 bg-destructive/10", icon: "alert", text: <><b>{attn.failed_actions}</b> failed or unconfirmed send{attn.failed_actions === 1 ? "" : "s"}</> },
+    attn.mailbox_errors > 0 && { href: "/integrations", tone: "border-destructive/30 bg-destructive/10", icon: "alert", text: <><b>{attn.mailbox_errors}</b> mailbox{attn.mailbox_errors === 1 ? "" : "es"} can't be checked for replies</> },
     attn.failed_jobs > 0 && { href: "/jobs", tone: "border-destructive/30 bg-destructive/10", icon: "alert", text: <><b>{attn.failed_jobs}</b> failed background job{attn.failed_jobs === 1 ? "" : "s"}</> },
   ].filter(Boolean) as { href: string; tone: string; icon: any; text: React.ReactNode }[] : [];
   return (

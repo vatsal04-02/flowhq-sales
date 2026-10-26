@@ -171,7 +171,10 @@ def test_out_of_office_does_not_stop_sequence(client, site):
     launch(client, camp)
     run_sends()
     client.post("/api/v1/sandbox/simulate-reply", json={"lead_id": lead_of(client)["id"], "body": "I am out of the office until next week."}, headers=H)
-    assert run_sends(biz_time(5)) == 1
+    run_sends(biz_time(5))
+    assert len(MockAdapter.outbox) == 2                                       # the follow-up really went out
+    c = client.get("/api/v1/analytics/overview").json()["cards"]
+    assert c["reply_rate"]["numerator"] == 0 and c["positive_reply_rate"]["numerator"] == 0   # an auto-reply is not a reply
 
 
 def test_bounce_suppresses_and_stops(client, site, db):

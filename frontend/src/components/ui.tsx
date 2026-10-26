@@ -76,7 +76,7 @@ export function Card({ title, actions, children, className }: { title?: string; 
   return (
     <section className={cx("page-in min-w-0 rounded-xl border border-border bg-card shadow-card", className)}>
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold tracking-tight">{title}</h2>{actions}
         </header>)}
       <div className="p-4">{children}</div>
