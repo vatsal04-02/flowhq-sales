@@ -2,8 +2,10 @@
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { Alert, Badge, Button, Card, Empty, Link, PageHeader, Skeleton, pretty, statusTone } from "@/components/ui";
+import { Alert, Badge, Button, Card, Empty, Icon, Link, PageHeader, Skeleton, pretty, statusTone } from "@/components/ui";
 import { api, LeadDetail } from "@/lib/api";
+
+const rtone = (r: string) => (r === "match" ? "success" : r === "no_match" ? "danger" : "warning") as any;
 
 export default function LeadPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +46,23 @@ export default function LeadPage() {
             <ol className="space-y-2 text-sm">{lead.timeline.map((t, i) => (
               <li key={i} className="flex justify-between gap-3 border-b border-border pb-2 last:border-0"><span>{t.kind.replace(/[._]/g, " ")}</span>
                 <time className="text-xs text-muted-foreground" dateTime={t.at}>{new Date(t.at).toLocaleString()}</time></li>))}</ol>)}
+        </Card>
+        <Card title="Research evidence" actions={<div className="flex items-center gap-2"><Badge tone={lead.research_status === "done" ? "success" : "warning"}>{lead.research_status === "none" ? "not researched" : lead.research_status}</Badge>
+          <Button variant="ghost" onClick={() => api(`/leads/${id}/research?force=true`, { method: "POST" }).then(() => alert("Research queued. Reload in a few seconds.")).catch((e) => setError(e.message))}>Re-run</Button></div>}>
+          {lead.evidence.length === 0 ? <Empty icon="info" title={lead.research_status === "none" ? "Not researched yet" : "No usable evidence found"}>{lead.research_status === "insufficient" || lead.research_status === "failed" ? "The site had too little public text, blocked fetching, or none was listed. Nothing is guessed: drafts stay conservative and need manual review." : "Run research from a campaign or the leads list."}</Empty> : (
+            <ul className="space-y-3 text-sm">{lead.evidence.filter((e) => e.finding !== "Homepage text sample").map((e) => (<li key={e.id}>
+              <div className="flex flex-wrap items-center gap-2"><b>{e.finding}</b><Badge tone="success">{e.kind}</Badge><Badge>{e.confidence}</Badge></div>
+              <blockquote className="mt-1 border-l-2 border-primary pl-2 text-muted-foreground">“{e.excerpt}”</blockquote>
+              <a className="mt-1 inline-flex items-center gap-1 break-all text-xs text-primary underline" href={e.url} target="_blank" rel="noopener noreferrer"><Icon name="external" className="h-3 w-3" />{e.url}</a>
+              {e.retrieved_at && <span className="ml-2 text-xs text-muted-foreground">retrieved {new Date(e.retrieved_at).toLocaleString()}</span>}</li>))}</ul>)}
+        </Card>
+        <Card title="ICP score">
+          {!lead.icp_class ? <Empty icon="info" title="Not scored">Add this lead to a campaign and run "Score all".</Empty> : (<>
+            <div className="mb-3 flex items-center gap-3"><span className="text-3xl font-semibold tabular-nums">{lead.icp_score ?? "n/a"}</span><Badge tone={lead.icp_class === "strong" ? "success" : lead.icp_class === "possible" ? "info" : "warning"}>{lead.icp_class}</Badge>
+              <span className="text-xs text-muted-foreground">confidence {lead.icp_confidence}%</span></div>
+            <ul className="space-y-2 text-sm">{lead.icp_breakdown.map((c) => (<li key={c.key} className="flex items-start justify-between gap-2"><span>{c.label}<span className="block text-xs text-muted-foreground">{c.detail}</span></span>
+              <Badge tone={rtone(c.result)}>{c.result === "unknown" ? "unknown (not scored)" : c.result.replace("_", " ")}</Badge></li>))}</ul>
+            <p className="mt-3 text-xs text-muted-foreground">Unknown facts are left out of the score and lower confidence instead of counting as a match or a miss. Latest campaign's criteria.</p></>)}
         </Card>
         <Card title="Outreach controls" className="lg:col-span-2">
           {stopped ? <p className="text-sm text-muted-foreground">This lead is permanently excluded from outreach.</p> : confirming ? (

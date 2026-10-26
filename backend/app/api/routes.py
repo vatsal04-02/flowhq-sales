@@ -4,6 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
 from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -176,7 +177,36 @@ def get_lead(lead_id: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
         ActivityLog.workspace_id == ctx.workspace_id, ActivityLog.lead_id == lead.id)
         .order_by(ActivityLog.id.desc()).limit(100))
     detail.timeline = [{"kind": a.kind, "data": a.data, "at": a.created_at.isoformat()} for a in logs]
+    from app.services.research import evidence_for
+    detail.evidence = [{"id": str(e.id), "finding": e.finding, "excerpt": e.excerpt, "url": e.url, "kind": e.kind,
+                        "confidence": e.confidence, "retrieved_at": e.retrieved_at.isoformat()} for e in evidence_for(ctx.db, ctx.workspace_id, lead.id)]
+    detail.icp_breakdown = lead.icp_breakdown or []
     return detail
+
+
+@router.post("/leads/{lead_id}/research")
+def research_lead_now(lead_id: uuid.UUID, force: bool = False, ctx: Ctx = Depends(get_ctx)):
+    from app.services.research import enqueue_research
+    if not LeadRepo(ctx.db, ctx.workspace_id).get(lead_id):
+        raise err(404, "not_found", "lead not found")
+    enqueue_research(ctx.db, ctx.workspace_id, [lead_id], force)
+    ctx.db.commit()
+    return {"queued": 1}
+
+
+class BulkResearch(BaseModel):
+    lead_ids: list[uuid.UUID] = Field(max_length=2000)
+    force: bool = False
+
+
+@router.post("/leads/research")
+def research_bulk(body: BulkResearch, ctx: Ctx = Depends(get_ctx)):
+    from app.services.research import enqueue_research
+    repo = LeadRepo(ctx.db, ctx.workspace_id)
+    ids = [i for i in body.lead_ids if repo.get(i)]
+    enqueue_research(ctx.db, ctx.workspace_id, ids, body.force)
+    ctx.db.commit()
+    return {"queued": len(ids)}
 
 
 @router.patch("/leads/{lead_id}", response_model=LeadOut)

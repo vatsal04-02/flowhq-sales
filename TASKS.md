@@ -44,7 +44,47 @@ Legend: [ ] todo · [~] in progress · [x] done AND acceptance tested. Update af
 Playwright run (login error, upload, map, import, leads, detail, jobs, 375px width) passed.
 Not covered yet: committed frontend/Playwright tests, real Docker run, real SMTP/LLM.
 
-## Later (M4–M8): see IMPLEMENTATION_PLAN.md §5
+## M4 Research & qualification — DONE (tested with fixture site)
+- [x] SSRF-guarded fetcher (public IPs only, re-checked per redirect, port/scheme limits, size/time caps), robots.txt respected
+- [x] Deterministic extraction -> verbatim evidence with URL, excerpt, timestamp, confidence, kind; 30-day cache
+- [x] Configurable ICP scoring with per-criterion breakdown; unknown excluded from score, lowers confidence; exclusions; thresholds
+- [x] Insufficient research -> no drafts by default, optional conservative draft flagged for manual review
+- [ ] Research uses no LLM by design (fast, cheap). "Inferred" evidence kind exists but nothing writes it yet.
 
-## Blockers / open items
-- Real SMTP/IMAP and hosted-LLM calls cannot be tested in this sandbox; need operator credentials and a test mailbox.
+## M5 Personalization & approval — DONE (tested with fake LLM + templates)
+- [x] LLM interface (Ollama/OpenAI-compatible, fake, none); schema-validated; usage/latency/failures recorded
+- [x] Template-first drafts; model may only propose subject+opening, which must cite verified evidence with an exact quote; otherwise rejected -> template
+- [x] Validator: banned phrases, unverified numbers, placeholders, length per channel; spammy/instruction-like site text is never quoted
+- [x] Edit invalidates approval (hash); errors block approval; bulk "approve all clean"
+- [ ] **Never run against a real model.** Prompts/JSON compliance of qwen2.5 are unverified; use `python -m scripts.bench_llm`.
+
+## M6 Email execution — DONE for mock provider; SMTP adapter written, not exercised
+- [x] Policy gate (kill switch, approval hash, campaign state, suppression, region, address, limits, working hours, replied/stopped)
+- [x] Idempotent send: intent recorded before provider call; crash -> needs_manual_check, never silently resent; retries with backoff
+- [x] Sequence scheduling, in-thread follow-ups, pause/resume (held not lost), daily limits defer
+- [x] Unsubscribe link + RFC 8058 header; GET never unsubscribes; reply opt-out is rule-based; bounce -> suppression
+- [x] Inbound matching by In-Reply-To then sender; duplicate events ignored; intent rules + optional model for "unclear"; human reclassify
+- [ ] **IMAP/real reply sync NOT built.** Only sandbox-simulated replies/bounces exist.
+- [ ] SMTP adapter never tested against a real or local SMTP server.
+- [ ] No delivery/bounce webhooks from real providers.
+
+## M7 Dashboard, inbox, pipeline — DONE (browser-tested)
+- [x] Dashboard with numerators/denominators/windows; real vs simulated vs manual sends separated
+- [x] Inbox with thread, intent editing, suggested replies, human reply (through suppression checks), sandbox tools
+- [x] Kanban with drag + menu; opportunity auto-created on positive reply; stage mirrors to lead status where allowed
+- [x] Manual queue for LinkedIn/Instagram (copy, open profile, mark sent). No automation.
+- [x] Failed/held sends, jobs, audit log views
+- [ ] No time-series charts (activity/reply trends) yet; funnel/ICP/channel are bars and tables
+- [ ] No Task entity (upcoming sends and manual queue stand in); no user/role management UI, data export/deletion, retention, webhook config
+- [ ] No login rate limiting; no Postgres RLS; no assignment of leads/conversations
+
+## Declined by design
+- Browser agent that logs in to personal LinkedIn/Instagram and sends DMs: not built (platform terms, account-ban risk, PRD exclusion). Manual-assist queue instead.
+
+## Verification (latest)
+- 73 backend tests (unit, integration, safety incl. 10k-row import), ruff clean
+- tsc clean, `next build` OK
+- Playwright journey (login → import → campaign → research → score → drafts → approve → launch → simulated reply → dashboard → pipeline), 375px no horizontal overflow, no console errors
+- NOT verified: Docker compose, GitHub CI, real SMTP, real Ollama, real IMAP
+
+## M8 Hardening — NOT STARTED (load tests, backup/restore drill, security review, deploy automation)

@@ -30,6 +30,10 @@ class LeadOut(ORM):
     status: str
     opted_out: bool
     possible_duplicate_of: uuid.UUID | None
+    research_status: str
+    icp_score: int | None
+    icp_class: str | None
+    icp_confidence: int | None
     custom: dict[str, Any]
     import_batch_id: uuid.UUID | None
     created_at: datetime
@@ -40,6 +44,9 @@ class LeadDetail(LeadOut):
     lawful_basis: str | None
     company: dict[str, Any] | None = None
     timeline: list[dict[str, Any]] = []
+    evidence: list[dict[str, Any]] = []
+    icp_breakdown: list[dict[str, Any]] = []
+    campaigns: list[dict[str, Any]] = []
 
 
 class LeadPage(BaseModel):

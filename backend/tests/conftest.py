@@ -5,6 +5,9 @@ import sys
 TEST_DB = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://flowhq:flowhq@localhost:5432/flowhq_test")
 os.environ["DATABASE_URL"] = TEST_DB
 os.environ["SECRET_KEY"] = "test-secret"
+os.environ["ALLOW_PRIVATE_FETCH"] = "true"   # fixtures are served from localhost; SSRF tests turn it off
+os.environ["LLM_PROVIDER"] = "none"
+os.environ["PUBLIC_BASE_URL"] = "http://app.test"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,8 +32,12 @@ def migrated():
 @pytest.fixture(autouse=True)
 def clean_db(migrated):
     with get_engine().begin() as c:
-        c.execute(text("TRUNCATE import_row_error, lead, company, import_batch, suppression_record, job, "
-                       "activity_log, audit_log, membership, user_account, workspace RESTART IDENTITY CASCADE"))
+        c.execute(text("TRUNCATE import_row_error, research_evidence, scheduled_action, message, conversation, generated_message, "
+                       "campaign_lead, campaign, channel_account, opportunity, provider_event, ai_usage_record, lead, company, "
+                       "import_batch, suppression_record, job, activity_log, audit_log, membership, user_account, workspace RESTART IDENTITY CASCADE"))
+    from app.adapters.channels.base import MockAdapter
+    from app.adapters.llm.base import set_llm_override
+    MockAdapter.outbox.clear(); MockAdapter.fail_next.clear(); set_llm_override(None)
     yield
 
 
@@ -72,8 +79,10 @@ def upload(c: TestClient, csv_text: str, name="leads.csv", **form):
 
 
 def run_all_jobs():
-    from app.jobs import queue
-    from app.services import imports  # noqa: F401
+    from app.jobs import (
+        handlers,  # noqa: F401
+        queue,
+    )
     n = 0
     while True:
         with session_factory()() as s:

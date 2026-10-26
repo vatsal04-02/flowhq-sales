@@ -8,7 +8,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setError(null); setBusy(true);
-    try { await api("/auth/login", { method: "POST", json: { email, password } }); location.href = "/leads"; }
+    try { await api("/auth/login", { method: "POST", json: { email, password } }); location.href = "/dashboard"; }
     catch (err) { setError((err as Error).message); setBusy(false); }
   }
   return (

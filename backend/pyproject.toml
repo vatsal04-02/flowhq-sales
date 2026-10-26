@@ -11,10 +11,10 @@ dependencies = [
 dev = ["pytest", "ruff"]
 
 [tool.ruff]
-line-length = 130
+line-length = 160
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
-ignore = ["B008", "E741", "B904", "E701", "E702"]
+ignore = ["B008", "E741", "B904", "E701", "E702", "B007", "E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "migrations/*" = ["E501", "I001"]

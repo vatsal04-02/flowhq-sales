@@ -4,14 +4,18 @@ import Shell from "@/components/Shell";
 import { Alert, Badge, Button, Card, Empty, Input, PageHeader, Tone, inputCls, td, th } from "@/components/ui";
 import { api, Job, Suppression } from "@/lib/api";
 
+type Act = { id: string; state: string; step: number; channel: string; run_at: string; retry_count: number; last_error: string | null; lead: string; company: string | null; campaign: string };
+
 const jobTone = (s: string): Tone => (s === "dead" ? "danger" : s === "done" ? "success" : s === "running" ? "info" : "warning");
 
 export default function Jobs() {
-  const [jobs, setJobs] = useState<Job[]>([]); const [sup, setSup] = useState<Suppression[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]); const [acts, setActs] = useState<Act[]>([]); const [upcoming, setUpcoming] = useState<Act[]>([]); const [sup, setSup] = useState<Suppression[]>([]);
   const [kind, setKind] = useState("email"); const [value, setValue] = useState(""); const [error, setError] = useState<string | null>(null);
   const load = useCallback(() => {
     api<Job[]>("/jobs").then(setJobs).catch((e) => setError(e.message));
     api<Suppression[]>("/suppressions").then(setSup).catch((e) => setError(e.message));
+    api<Act[]>("/actions?state=problem").then(setActs).catch(() => {});
+    api<Act[]>("/actions?state=pending").then(setUpcoming).catch(() => {});
   }, []);
   useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
   async function add(e: React.FormEvent) {
@@ -24,6 +28,20 @@ export default function Jobs() {
       <PageHeader title="Jobs & suppression" />
       {error && <div className="mb-3"><Alert>{error}</Alert></div>}
       <div className="space-y-4">
+        <Card title={`Failed or unconfirmed sends (${acts.length})`}>
+          {acts.length === 0 ? <Empty icon="check" title="No failed sends">Every queued send either went out, is waiting, or was stopped by a safety rule.</Empty> : (
+            <ul className="divide-y divide-border text-sm">{acts.map((a) => (<li key={a.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+              <div><div className="font-medium">{a.lead} <span className="text-muted-foreground">· {a.campaign} · step {a.step + 1}</span></div>
+                <div className="text-xs text-destructive">{a.last_error}</div></div>
+              <div className="flex gap-2"><Badge tone="danger">{a.state.replace(/_/g, " ")}</Badge>
+                {a.state === "failed" && <Button variant="ghost" onClick={() => api(`/actions/${a.id}/retry`, { method: "POST" }).then(load).catch((e) => setError(e.message))}>Retry</Button>}
+                {a.state === "needs_manual_check" && <><Button variant="ghost" onClick={() => api(`/actions/${a.id}/resolve`, { method: "POST", json: { was_sent: true } }).then(load)}>It was sent</Button><Button variant="ghost" onClick={() => api(`/actions/${a.id}/resolve`, { method: "POST", json: { was_sent: false } }).then(load)}>It was not sent</Button></>}</div></li>))}</ul>)}
+        </Card>
+        <Card title={`Upcoming & held sends (${upcoming.length})`}>
+          {upcoming.length === 0 ? <Empty icon="send" title="Nothing scheduled" /> : (
+            <ul className="divide-y divide-border text-sm">{upcoming.slice(0, 15).map((a) => (<li key={a.id} className="flex flex-wrap justify-between gap-2 py-2"><span>{a.lead} <span className="text-muted-foreground">· {a.campaign} · step {a.step + 1}</span></span>
+              <span className="text-xs text-muted-foreground">{new Date(a.run_at).toLocaleString()}{a.last_error ? ` · held: ${a.last_error}` : ""}</span></li>))}</ul>)}
+        </Card>
         <Card title="Background jobs">
           {jobs.length === 0 ? <Empty icon="activity" title="No jobs yet">Imports and other background work appear here, including failures you can retry.</Empty> : (
             <div className="-m-4 overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="border-b border-border bg-muted/60"><tr>
