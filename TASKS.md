@@ -74,7 +74,8 @@ Not covered yet: committed frontend/Playwright tests, real Docker run, real SMTP
 - [x] Kanban with drag + menu; opportunity auto-created on positive reply; stage mirrors to lead status where allowed
 - [x] Manual queue for LinkedIn/Instagram (copy, open profile, mark sent). No automation.
 - [x] Failed/held sends, jobs, audit log views
-- [ ] No time-series charts (activity/reply trends) yet; funnel/ICP/channel are bars and tables
+- [x] Time-series chart (sent / replies / positive per day, hover values, direct labels + dash styles so colour is not the only signal), sparklines, rate rings, funnel with stage conversion %, ICP donut
+- [x] UI polish pass: dark sidebar shell, branded login, avatars, depth/shadows, responsive charts (no overflow at 375px), campaign page auto-refresh after actions
 - [ ] No Task entity (upcoming sends and manual queue stand in); no user/role management UI, data export/deletion, retention, webhook config
 - [ ] No login rate limiting; no Postgres RLS; no assignment of leads/conversations
 
@@ -82,7 +83,7 @@ Not covered yet: committed frontend/Playwright tests, real Docker run, real SMTP
 - Browser agent that logs in to personal LinkedIn/Instagram and sends DMs: not built (platform terms, account-ban risk, PRD exclusion). Manual-assist queue instead.
 
 ## Verification (latest)
-- 73 backend tests (unit, integration, safety incl. 10k-row import), ruff clean
+- 73 backend tests (unit, integration, safety incl. 10k-row import), ruff clean; /analytics/timeseries covered
 - tsc clean, `next build` OK
 - Playwright journey (login → import → campaign → research → score → drafts → approve → launch → simulated reply → dashboard → pipeline), 375px no horizontal overflow, no console errors
 - NOT verified: Docker compose, GitHub CI, real SMTP, real Ollama, real IMAP

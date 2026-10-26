@@ -117,3 +117,26 @@ def needs_attention(db: Session, ws: uuid.UUID) -> dict:
     llm_fail = db.scalar(select(func.count()).select_from(AIUsageRecord).where(AIUsageRecord.workspace_id == ws, AIUsageRecord.ok.is_(False))) or 0
     return {"failed_jobs": failed_jobs, "failed_actions": failed_actions, "drafts_to_review": review,
             "positive_replies": positive, "upcoming_sends": upcoming, "llm_failures": llm_fail}
+
+
+def timeseries(db: Session, ws: uuid.UUID, days: int = 30) -> list[dict]:
+    """Per-day (UTC) counts of real+simulated+manual sends, replies and positive replies. Message-level counts."""
+    days = max(1, min(days, 365))
+    start = (datetime.now(timezone.utc) - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    when = func.date_trunc("day", func.coalesce(Message.sent_at, Message.created_at))
+    rows = db.execute(select(when, Message.direction, Message.intent, func.count()).where(
+        Message.workspace_id == ws, Message.state.in_(["sent", "received"]), func.coalesce(Message.sent_at, Message.created_at) >= start)
+        .group_by(when, Message.direction, Message.intent)).all()
+    out = {(start + timedelta(days=i)).date().isoformat(): {"date": (start + timedelta(days=i)).date().isoformat(), "sent": 0, "replies": 0, "positive": 0}
+           for i in range(days)}
+    for day, direction, intent, n in rows:
+        d = out.get(day.date().isoformat())
+        if d is None:
+            continue
+        if direction == "out":
+            d["sent"] += n
+        else:
+            d["replies"] += n
+            if intent in POSITIVE:
+                d["positive"] += n
+    return list(out.values())

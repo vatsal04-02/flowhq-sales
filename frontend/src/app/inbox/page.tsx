@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { Alert, Badge, Button, Card, Empty, Link, PageHeader, Skeleton, inputCls, pretty } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, Empty, Link, PageHeader, Skeleton, inputCls, pretty } from "@/components/ui";
 import { api } from "@/lib/api";
 
 type Conv = { id: string; channel: string; subject: string | null; last_message_at: string; lead: { id: string; name: string; email: string; title: string | null; company: string | null; status: string };
@@ -26,18 +26,19 @@ export default function Inbox() {
       </PageHeader>
       {error && <div className="mb-3"><Alert>{error}</Alert></div>}{note && <div className="mb-3"><Alert tone="success">{note}</Alert></div>}
       <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-        <div className="rounded border border-border bg-card">
+        <div className="rounded-xl border border-border bg-card shadow-card">
           {!list ? <Skeleton /> : list.length === 0 ? <Empty icon="inbox" title="No conversations yet">Conversations appear after the first message is sent.</Empty> : (
             <ul className="max-h-[72vh] divide-y divide-border overflow-y-auto">{list.map((c) => (<li key={c.id}><button onClick={() => open(c.id)} aria-current={d?.id === c.id} className={`w-full cursor-pointer px-3 py-2 text-left hover:bg-muted/50 ${d?.id === c.id ? "bg-primary/10" : ""}`}>
+              <div className="flex gap-2.5"><Avatar name={c.lead.name} size={36} /><div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2"><span className="truncate text-sm font-medium">{c.lead.name}</span>
                 {c.last?.intent && <Badge tone={positive.includes(c.last.intent) ? "success" : c.last.intent === "unsubscribe" ? "danger" : "neutral"}>{pretty(c.last.intent)}</Badge>}</div>
               <div className="truncate text-xs text-muted-foreground">{c.lead.company} · {c.channel}</div>
-              <div className="truncate text-xs">{c.last?.direction === "in" ? "↩ " : "→ "}{c.last?.preview}</div></button></li>))}</ul>)}
+              <div className="truncate text-xs">{c.last?.direction === "in" ? "↩ " : "→ "}{c.last?.preview}</div></div></div></button></li>))}</ul>)}
         </div>
-        <div>{!d ? <div className="rounded border border-border bg-card"><Empty icon="inbox" title="Select a conversation">Replies are classified automatically. You can always correct the classification.</Empty></div> : (
+        <div>{!d ? <div className="rounded-xl border border-border bg-card shadow-card"><Empty icon="inbox" title="Select a conversation">Replies are classified automatically. You can always correct the classification.</Empty></div> : (
           <div className="space-y-4">
             <Card title={`${d.lead.name} · ${d.lead.company ?? ""}`} actions={<div className="flex items-center gap-2"><Badge>{d.lead.status.replace(/_/g, " ")}</Badge><Link className="text-xs text-primary underline" href={`/leads/${d.lead.id}`}>Lead</Link></div>}>
-              <ol className="space-y-3">{d.messages.map((m) => (<li key={m.id} className={`rounded border p-3 text-sm ${m.direction === "in" ? "border-primary/30 bg-primary/5" : "border-border"}`}>
+              <ol className="space-y-3">{d.messages.map((m) => (<li key={m.id} className={`rounded-xl border p-3.5 text-sm ${m.direction === "in" ? "border-primary/30 bg-primary/5" : "border-border bg-muted/30"}`}>
                 <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><b className="text-foreground">{m.direction === "in" ? "Reply" : "Sent"}</b>
                   <time dateTime={m.at}>{new Date(m.at).toLocaleString()}</time>{m.simulated && <Badge tone="warning">simulated</Badge>}{m.manual && <Badge tone="info">sent manually</Badge>}{m.state === "failed" && <Badge tone="danger">failed</Badge>}</div>
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>

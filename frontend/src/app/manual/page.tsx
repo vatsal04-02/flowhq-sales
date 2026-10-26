@@ -13,11 +13,11 @@ export default function Manual() {
   async function copy(d: Draft) { try { await navigator.clipboard.writeText(d.body); setCopied(d.id); setTimeout(() => setCopied(null), 2000); } catch { setError("Copy failed: select the text and copy it manually."); } }
   return (
     <Shell>
-      <PageHeader title="Manual queue (LinkedIn & Instagram)" />
+      <PageHeader title="Manual queue" subtitle="LinkedIn & Instagram: you send, we keep track" />
       <div className="mb-4"><Alert tone="info">{q?.note ?? "You send these yourself in your own browser."} Open the profile, paste the message, send it, then mark it as sent so replies and follow-ups stay tracked.</Alert></div>
       {error && <div className="mb-3"><Alert>{error}</Alert></div>}
       {q && <p className="mb-3 text-sm text-muted-foreground">Sent in the last 24 hours: <b className="text-foreground">{q.sent_last_24h}</b> · suggested cap {q.suggested_daily_cap}/day. Going slower protects your account.{q.sent_last_24h >= q.suggested_daily_cap && <b className="text-warning"> You have reached the suggested cap for today.</b>}</p>}
-      {!q ? <Skeleton /> : q.items.length === 0 ? <div className="rounded border border-border bg-card"><Empty icon="hand" title="Nothing to send">Approve LinkedIn or Instagram drafts in Draft review and they appear here.</Empty></div> : (
+      {!q ? <Skeleton /> : q.items.length === 0 ? <div className="rounded-xl border border-border bg-card shadow-card"><Empty icon="hand" title="Nothing to send">Approve LinkedIn or Instagram drafts in Draft review and they appear here.</Empty></div> : (
         <ul className="grid gap-3 md:grid-cols-2">{q.items.map((d) => { const url = d.channel === "linkedin" ? d.lead?.linkedin_url : d.lead?.instagram_url; return (<li key={d.id}>
           <Card title={`${d.lead?.name ?? "Lead"} · ${d.lead?.company ?? ""}`} actions={<Badge tone="info">{d.channel}</Badge>}>
             <p className="whitespace-pre-wrap rounded bg-muted p-2 text-sm">{d.body}</p>

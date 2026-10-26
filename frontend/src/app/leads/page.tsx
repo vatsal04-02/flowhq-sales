@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { Alert, Badge, Button, Empty, Input, Link, PageHeader, Skeleton, inputCls, pretty, statusTone, td, th } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Empty, Input, Link, PageHeader, Skeleton, inputCls, pretty, statusTone, td, th } from "@/components/ui";
 import { api, Campaign, Lead } from "@/lib/api";
 
 const STATUSES = ["imported", "needs_research", "qualified", "unqualified", "ready_for_review", "approved",
@@ -39,7 +39,7 @@ export default function Leads() {
   const filtered = q || status || region;
   return (
     <Shell>
-      <PageHeader title="Leads">
+      <PageHeader title="Leads" subtitle={`${items.length}${cursor ? "+" : ""} shown`}>
         <Link href="/import" className="inline-flex min-h-[44px] items-center rounded bg-primary px-3 text-sm font-medium text-primary-foreground md:min-h-9">Import CSV</Link>
       </PageHeader>
       <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_200px_110px]" role="search">
@@ -55,19 +55,20 @@ export default function Leads() {
           <b>{picked.size} selected</b><Button onClick={() => bulk("research")}>Research</Button>
           <select aria-label="Campaign" className={`${inputCls} !w-auto`} value={camp} onChange={(e) => setCamp(e.target.value)}><option value="">Add to campaign…</option>{camps.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
           <Button disabled={!camp} onClick={() => bulk("campaign")}>Add</Button><Button variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button></div>)}
-      <div className="overflow-x-auto rounded border border-border bg-card">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card">
         <table className="w-full min-w-[900px] text-sm">
           <caption className="sr-only">Leads</caption>
           <thead className="border-b border-border bg-muted/60"><tr>
-            <th scope="col" className="w-8 px-3 py-2"><span className="sr-only">Select</span></th><th scope="col" className={th}>Name</th><th scope="col" className={th}>Email</th><th scope="col" className={th}>Phone</th>
+            <th scope="col" className={`${th} w-8`}><span className="sr-only">Select</span></th><th scope="col" className={th}>Name</th><th scope="col" className={th}>Email</th><th scope="col" className={th}>Phone</th>
             <th scope="col" className={th}>Region</th><th scope="col" className={th}>Research</th><th scope="col" className={th}>Fit</th><th scope="col" className={th}>Status</th><th scope="col" className={th}>Flags</th></tr></thead>
           <tbody className="divide-y divide-border">
             {items.map((l) => (
               <tr key={l.id} className="hover:bg-muted/40">
                 <td className="px-3 py-2"><input type="checkbox" aria-label={`Select ${l.email_norm ?? l.id}`} checked={picked.has(l.id)} onChange={() => toggle(l.id)} /></td>
-                <td className={td}><Link className="font-medium text-primary underline-offset-2 hover:underline" href={`/leads/${l.id}`}>
+                <td className={td}><div className="flex items-center gap-2.5"><Avatar name={[l.first_name, l.last_name].filter(Boolean).join(" ") || l.email_norm || "?"} />
+                  <div><Link className="font-medium text-primary underline-offset-2 hover:underline" href={`/leads/${l.id}`}>
                   {[l.first_name, l.last_name].filter(Boolean).join(" ") || "(no name)"}</Link>
-                  {l.title && <div className="text-xs text-muted-foreground">{l.title}</div>}</td>
+                  {l.title && <div className="text-xs text-muted-foreground">{l.title}</div>}</div></div></td>
                 <td className={`${td} mono text-xs`}>{l.email_norm ?? "—"}</td>
                 <td className={`${td} mono text-xs`}>{l.phone_e164 ?? "—"}</td>
                 <td className={td}>{l.region ?? "—"}</td>

@@ -59,6 +59,9 @@ def test_full_workflow(client, site, db):
     assert [m["direction"] for m in conv["messages"]] == ["out", "in"] and conv["messages"][1]["simulated"] is True
     assert conv["messages"][1]["suggested_reply"]
 
+    ts = client.get("/api/v1/analytics/timeseries?days=7").json()
+    # the send used the test's simulated business-hours clock (may be "tomorrow"), the reply used the real clock
+    assert len(ts) == 7 and sum(d["replies"] for d in ts) == 1 and sum(d["positive"] for d in ts) == 1
     ov = client.get("/api/v1/analytics/overview").json()
     c = ov["cards"]
     assert c["reply_rate"]["numerator"] == 1 and c["reply_rate"]["denominator"] == 1 and c["reply_rate"]["value"] == 100.0

@@ -2,7 +2,7 @@
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { Alert, Badge, Button, Card, Empty, Icon, Link, PageHeader, Skeleton, pretty, statusTone } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, Empty, Icon, Link, PageHeader, Skeleton, pretty, statusTone } from "@/components/ui";
 import { api, LeadDetail } from "@/lib/api";
 
 const rtone = (r: string) => (r === "match" ? "success" : r === "no_match" ? "danger" : "warning") as any;
@@ -27,7 +27,8 @@ export default function LeadPage() {
   return (
     <Shell>
       <p className="mb-2 text-sm"><Link href="/leads" className="text-primary underline">← Leads</Link></p>
-      <PageHeader title={[lead.first_name, lead.last_name].filter(Boolean).join(" ") || "(no name)"}>
+      <PageHeader title={[lead.first_name, lead.last_name].filter(Boolean).join(" ") || "(no name)"} subtitle={[lead.title, lead.company?.name].filter(Boolean).join(" · ") || lead.email_norm}>
+        <Avatar name={[lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.email_norm || "?"} size={40} />
         <Badge tone={statusTone(lead.status)}>{pretty(lead.status)}</Badge>
         {lead.opted_out && <Badge tone="danger">opted out</Badge>}
         {lead.possible_duplicate_of && <Badge tone="warning">possible duplicate</Badge>}

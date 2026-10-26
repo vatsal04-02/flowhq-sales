@@ -25,7 +25,7 @@ export default function Jobs() {
   }
   return (
     <Shell>
-      <PageHeader title="Jobs & suppression" />
+      <PageHeader title="Jobs & suppression" subtitle="Failed sends, background work and the do-not-contact list" />
       {error && <div className="mb-3"><Alert>{error}</Alert></div>}
       <div className="space-y-4">
         <Card title={`Failed or unconfirmed sends (${acts.length})`}>

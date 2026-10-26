@@ -1,6 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import CampaignForm from "@/components/CampaignForm";
 import Shell from "@/components/Shell";
 import { Alert, Badge, Button, Card, Icon, Link, PageHeader, Skeleton, inputCls, pretty, th, td } from "@/components/ui";
@@ -17,19 +17,27 @@ export default function CampaignPage() {
   const [batches, setBatches] = useState<Batch[]>([]); const [batch, setBatch] = useState(""); const [busyJobs, setBusyJobs] = useState(0);
   const [error, setError] = useState<string | null>(null); const [note, setNote] = useState<string | null>(null); const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState<string | null>(null); const [incl, setIncl] = useState(false);
+  const [watchUntil, setWatchUntil] = useState(0); const busyRef = useRef(0);
 
   const load = useCallback(async () => {
     try {
       setC(await api<Campaign>(`/campaigns/${id}`)); setLeads(await api<CL[]>(`/campaigns/${id}/leads`)); setReady(await api<Ready>(`/campaigns/${id}/readiness`));
-      const jobs = await api<Job[]>("/jobs"); setBusyJobs(jobs.filter((j) => ["pending", "running"].includes(j.state)).length);
+      const jobs = await api<Job[]>("/jobs"); const n = jobs.filter((j) => ["pending", "running"].includes(j.state)).length; busyRef.current = n; setBusyJobs(n);
     } catch (e) { setError((e as Error).message); }
   }, [id]);
   useEffect(() => { load(); api<Batch[]>("/imports").then(setBatches).catch(() => {}); }, [load]);
-  useEffect(() => { if (!busyJobs) return; const t = setInterval(load, 2500); return () => clearInterval(t); }, [busyJobs, load]);
+  // After any action keep refreshing for a while: a fast worker can finish before the first refresh, which would otherwise leave stale numbers.
+  useEffect(() => {
+    if (watchUntil <= Date.now() && !busyRef.current) return;
+    let alive = true; let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => { await load(); if (alive && (busyRef.current > 0 || Date.now() < watchUntil)) timer = setTimeout(tick, 1500); };
+    timer = setTimeout(tick, 1000);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [watchUntil, busyJobs, load]);
 
   async function act(path: string, body?: unknown, msg?: string) {
     setError(null); setNote(null);
-    try { const r: any = await api(path, { method: "POST", json: body }); setNote(msg ?? (r.added !== undefined ? `Added ${r.added} lead(s), skipped ${r.skipped}.` : "Started. Progress updates below.")); await load(); }
+    try { const r: any = await api(path, { method: "POST", json: body }); setWatchUntil(Date.now() + 12000); setNote(msg ?? (r.added !== undefined ? `Added ${r.added} lead(s), skipped ${r.skipped}.` : "Started. Progress updates below.")); await load(); }
     catch (e: any) { setError(e.message + (e.code === "not_ready" ? "" : "")); await load(); }
   }
   if (!c) return <Shell>{error ? <Alert>{error}</Alert> : <Skeleton />}</Shell>;

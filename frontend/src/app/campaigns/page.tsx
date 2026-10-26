@@ -9,10 +9,10 @@ export default function Campaigns() {
   useEffect(() => { api<Campaign[]>("/campaigns").then(setItems).catch((e) => setError(e.message)); }, []);
   return (
     <Shell>
-      <PageHeader title="Campaigns"><Link href="/campaigns/new" className="inline-flex min-h-[44px] items-center rounded bg-primary px-3 text-sm font-medium text-primary-foreground md:min-h-9">New campaign</Link></PageHeader>
+      <PageHeader title="Campaigns" subtitle="Offer, target profile, channels and follow-up sequence"><Link href="/campaigns/new" className="inline-flex min-h-[44px] items-center rounded bg-primary px-3 text-sm font-medium text-primary-foreground md:min-h-9">New campaign</Link></PageHeader>
       {error && <Alert>{error}</Alert>}
-      {!items ? <Skeleton /> : items.length === 0 ? <div className="rounded border border-border bg-card"><Empty icon="megaphone" title="No campaigns yet">A campaign holds your offer, target profile, channels and follow-up sequence.</Empty></div> : (
-        <div className="overflow-x-auto rounded border border-border bg-card"><table className="w-full min-w-[640px] text-sm"><thead className="border-b border-border bg-muted/60"><tr>
+      {!items ? <Skeleton /> : items.length === 0 ? <div className="rounded-xl border border-border bg-card shadow-card"><Empty icon="megaphone" title="No campaigns yet">A campaign holds your offer, target profile, channels and follow-up sequence.</Empty></div> : (
+        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-card"><table className="w-full min-w-[640px] text-sm"><thead className="border-b border-border bg-muted/60"><tr>
           <th className={th}>Name</th><th className={th}>Status</th><th className={th}>Leads</th><th className={th}>Drafts</th><th className={th}>Channels</th></tr></thead>
           <tbody className="divide-y divide-border">{items.map((c) => (<tr key={c.id} className="hover:bg-muted/40">
             <td className={td}><Link className="font-medium text-primary hover:underline" href={`/campaigns/${c.id}`}>{c.name}</Link></td>

@@ -392,6 +392,11 @@ def a_funnel(ctx: Ctx = Depends(get_ctx)):
     return analytics.overview(ctx.db, ctx.workspace_id)["funnel"]
 
 
+@router.get("/analytics/timeseries")
+def a_timeseries(days: int = Query(30, ge=1, le=365), ctx: Ctx = Depends(get_ctx)):
+    return analytics.timeseries(ctx.db, ctx.workspace_id, days)
+
+
 @router.get("/analytics/attention")
 def a_attention(ctx: Ctx = Depends(get_ctx)):
     return analytics.needs_attention(ctx.db, ctx.workspace_id)

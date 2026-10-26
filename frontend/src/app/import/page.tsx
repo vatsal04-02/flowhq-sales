@@ -38,7 +38,7 @@ export default function ImportPage() {
   const started = !!batch && !["uploaded", "mapped"].includes(batch.status);
   return (
     <Shell>
-      <PageHeader title="Import leads" />
+      <PageHeader title="Import leads" subtitle="Upload a CSV, map columns, review, import" />
       {error && <div className="mb-3"><Alert>{error}</Alert></div>}
       {!up && (
         <Card title="1. Upload a CSV">

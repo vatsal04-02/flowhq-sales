@@ -15,7 +15,7 @@ export default function Integrations() {
   const llmTone = (s: string) => (s === "ok" ? "success" : s === "templates_only" ? "info" : "warning") as any;
   return (
     <Shell>
-      <PageHeader title="Integrations & safety" />
+      <PageHeader title="Integrations & safety" subtitle="Sending accounts, local AI model and the global kill switch" />
       {error && <div className="mb-3"><Alert>{error}</Alert></div>}{note && <div className="mb-3"><Alert tone="success">{note}</Alert></div>}
       {!d ? <Skeleton /> : (
         <div className="grid gap-4 lg:grid-cols-2">
