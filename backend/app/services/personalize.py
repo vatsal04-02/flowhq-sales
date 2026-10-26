@@ -139,7 +139,9 @@ def generate_one(db: Session, camp: Campaign, lead: Lead, step: int, channel: st
     source, llm_note, claims, opening, subject = "template", None, [], None, None
 
     if step == 0:
-        slots, idmap, err = (None, {}, None)
+        slots: Slots | None = None
+        idmap: dict[str, ResearchEvidence] = {}
+        err: str | None = None
         if use_llm:
             slots, idmap, err = _try_llm(db, camp, lead, company, ev)
         if slots is not None:

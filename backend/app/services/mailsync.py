@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.adapters.channels.imap import ImapClient, ImapError
 from app.core.config import get_settings
 from app.core.crypto import decrypt
+from app.db import must_get
 from app.domain import mailparse
 from app.jobs import queue
 from app.models import ChannelAccount, Job, ProviderEvent
@@ -85,7 +86,7 @@ def sync_account(db: Session, acct: ChannelAccount, client: ImapClient | None = 
             db.rollback()
             log.exception("could not process imap message uid=%s", uid)
             outcome = "skipped"
-            acct = db.get(ChannelAccount, acct.id)
+            acct = must_get(db, ChannelAccount, acct.id)
         stats["fetched"] += 1
         stats[outcome] = stats.get(outcome, 0) + 1
         state.update(uidvalidity=res.uidvalidity, last_uid=uid)

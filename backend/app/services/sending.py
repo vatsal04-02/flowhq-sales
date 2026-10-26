@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.adapters.channels.base import Outbound, SendError, adapter_for, capabilities_for
 from app.core.config import get_settings
 from app.core.crypto import decrypt
+from app.db import must_get
 from app.domain.policy import GateInput, check
 from app.domain.states import can_transition
 from app.models import (
@@ -159,7 +160,7 @@ def run_due(db: Session, limit: int = 25, now: datetime | None = None) -> int:
             process_action(db, a, now or now_utc())
         except Exception as exc:  # noqa: BLE001 - never lose the action: record and retry later
             db.rollback()
-            a = db.get(ScheduledAction, a.id)
+            a = must_get(db, ScheduledAction, a.id)
             a.retry_count += 1
             a.last_error = f"{type(exc).__name__}: {exc}"[:500]
             a.state = "failed" if a.retry_count > MAX_RETRIES else "pending"
@@ -171,8 +172,8 @@ def run_due(db: Session, limit: int = 25, now: datetime | None = None) -> int:
 
 
 def process_action(db: Session, a: ScheduledAction, now: datetime) -> None:
-    lead, camp, gm = db.get(Lead, a.lead_id), db.get(Campaign, a.campaign_id), db.get(GeneratedMessage, a.generated_message_id)
-    ws = db.get(Workspace, a.workspace_id)
+    lead, camp, gm = must_get(db, Lead, a.lead_id), must_get(db, Campaign, a.campaign_id), must_get(db, GeneratedMessage, a.generated_message_id)
+    ws = must_get(db, Workspace, a.workspace_id)
     cl = db.scalars(select(CampaignLead).where(CampaignLead.campaign_id == camp.id, CampaignLead.lead_id == lead.id)).first()
 
     existing = db.scalars(select(Message).where(Message.idempotency_key == a.idempotency_key)).first()
@@ -189,9 +190,9 @@ def process_action(db: Session, a: ScheduledAction, now: datetime) -> None:
     acct = _account_for(db, camp)
     caps = capabilities_for(a.channel, acct.provider if acct else None)
     sup = SuppressionRepo(db, a.workspace_id).is_suppressed(lead.email_norm, lead.phone_e164)
-    replied = db.scalar(select(func.count()).select_from(Message).where(   # an out-of-office auto-reply is not a reply
+    replied = (db.scalar(select(func.count()).select_from(Message).where(   # an out-of-office auto-reply is not a reply
         Message.lead_id == lead.id, Message.direction == "in", Message.campaign_id == camp.id,
-        Message.intent.is_distinct_from("out_of_office"))) > 0
+        Message.intent.is_distinct_from("out_of_office"))) or 0) > 0
     gate = GateInput(
         now=now, kill_switch=ws.kill_switch, campaign_status=camp.status, campaign_lead_state=cl.state if cl else "active",
         lead_status=lead.status, lead_opted_out=lead.opted_out, lead_region=lead.region, blocked_regions=camp.blocked_regions or [],
@@ -205,7 +206,7 @@ def process_action(db: Session, a: ScheduledAction, now: datetime) -> None:
     d = check(gate)
 
     if d.action == "defer":
-        a.state, a.run_at, a.lease_until, a.last_error = "pending", d.until, None, d.reason
+        a.state, a.run_at, a.lease_until, a.last_error = "pending", d.until or now + timedelta(minutes=5), None, d.reason
         return
     if d.action == "block":
         a.last_error, a.lease_until = d.reason, None
@@ -219,6 +220,8 @@ def process_action(db: Session, a: ScheduledAction, now: datetime) -> None:
         return
 
     # ---- allowed: record intent first, then call the provider ----
+    if acct is None or lead.email_norm is None:  # the gate only allows with an active account and a recipient; fail closed if that ever stops holding
+        raise RuntimeError("gate allowed a send without a mailbox or recipient address")
     conv = db.scalars(select(Conversation).where(Conversation.lead_id == lead.id, Conversation.campaign_id == camp.id,
                                                  Conversation.channel == a.channel)).first()
     if conv is None:
@@ -233,6 +236,8 @@ def process_action(db: Session, a: ScheduledAction, now: datetime) -> None:
                               subject=gm.subject, body=render_email_body(gm, camp, lead), idempotency_key=a.idempotency_key,
                               message_id_header=f"<{uuid.uuid4().hex}@{domain}>",
                               in_reply_to=prev_out.message_id_header if prev_out else None)
+    if not msg.message_id_header:
+        msg.message_id_header = f"<{uuid.uuid4().hex}@{domain}>"
     msg.state = "sending"
     db.add(msg)
     db.commit()  # the intent is durable BEFORE the network call
@@ -244,7 +249,7 @@ def process_action(db: Session, a: ScheduledAction, now: datetime) -> None:
                      body=msg.body, message_id=msg.message_id_header, in_reply_to=msg.in_reply_to,
                      list_unsubscribe_url=unsub_url(lead.workspace_id, lead.id)), a.idempotency_key)
     except SendError as exc:
-        msg = db.get(Message, msg.id)
+        msg = must_get(db, Message, msg.id)
         msg.state, msg.error = "failed", str(exc)[:500]
         if exc.permanent:
             a.state, a.last_error, a.lease_until = "failed", str(exc)[:500], None

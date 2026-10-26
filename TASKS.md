@@ -7,7 +7,7 @@ Legend: [ ] todo · [~] in progress · [x] done AND acceptance tested. Update af
 - [x] IMPLEMENTATION_PLAN.md, ARCHITECTURE.md, TASKS.md, CLAUDE.md, PRD.md
 - [x] Operator decisions: local/open-source LLM (Ollama); no browser automation of personal LinkedIn/Instagram (manual-assist instead, IMPLEMENTATION_PLAN §8)
 
-## M0 Skeleton — DONE except Docker verification
+## M0 Skeleton — DONE
 - [x] .gitignore, .env.example (no secrets); git init done (no commits yet)
 - [x] FastAPI app + /healthz, env config
 - [x] Alembic baseline; downgrade base -> upgrade head runs at the start of every test session
@@ -15,7 +15,8 @@ Legend: [ ] todo · [~] in progress · [x] done AND acceptance tested. Update af
 - [x] Next.js shell on design-system tokens (design-system/flowhq-outreach-os/MASTER.md)
 - [x] CI workflow written (ruff, pytest, tsc, next build) — not yet run on GitHub
 - [x] ADR-0001
-- [ ] docker-compose / Dockerfiles written but **NOT verified**: sandbox has no Docker daemon. Operator must run `docker compose up --build`.
+- [x] docker-compose verified with `docker compose up --build` (2026-10-27): migrations run on start, login/import/worker job work through the web proxy. Fixed on the way: `psycopg-binary` missing from the lock, `API_URL` baked into the Next build (now a build arg), no `.dockerignore`.
+- [x] `mypy app` is clean (was 142 errors) and runs in CI; DB lookups of required rows go through `app.db.must_get`.
 
 ## M1 Auth, workspace, leads core — DONE
 - [x] User/Workspace/Membership, argon2 login, signed HttpOnly cookie, CSRF header, CLI create-admin
@@ -42,7 +43,7 @@ Legend: [ ] todo · [~] in progress · [x] done AND acceptance tested. Update af
 
 **Verification:** 34 backend tests (unit/integration/safety), ruff clean, tsc clean, `next build` OK, and an ad-hoc
 Playwright run (login error, upload, map, import, leads, detail, jobs, 375px width) passed.
-Not covered yet: committed frontend/Playwright tests, real Docker run, real SMTP/LLM.
+Not covered yet: committed frontend/Playwright tests, real SMTP/LLM.
 
 ## M4 Research & qualification — DONE (tested with fixture site)
 - [x] SSRF-guarded fetcher (public IPs only, re-checked per redirect, port/scheme limits, size/time caps), robots.txt respected
@@ -91,6 +92,6 @@ Not covered yet: committed frontend/Playwright tests, real Docker run, real SMTP
 - tsc clean, `next build` OK
 - Playwright journey (login → import → campaign → research → score → drafts → approve → launch → simulated reply → dashboard → pipeline), 375px no horizontal overflow, no console errors
 - Browser journeys: sandbox flow, and real-mail flow (local SMTP + independent IMAP server + worker + UI)
-- NOT verified: Docker compose, GitHub CI, real Ollama, Gmail/Outlook/any hosted mailbox
+- NOT verified: GitHub CI run, real Ollama, Gmail/Outlook/any hosted mailbox
 
 ## M8 Hardening — NOT STARTED (load tests, backup/restore drill, security review, deploy automation)

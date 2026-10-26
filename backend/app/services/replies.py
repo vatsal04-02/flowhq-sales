@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.adapters.llm.base import LLMUnavailable, call_llm
+from app.db import must_get
 from app.domain import intent as I
 from app.domain.normalize import normalize_email
 from app.domain.states import can_transition
@@ -91,13 +92,13 @@ def ingest_inbound(db: Session, workspace_id: uuid.UUID, *, provider: str, exter
         intent, conf, src = "out_of_office", 90, "headers"
     else:
         intent, conf, src = classify_text(db, workspace_id, body)
+    received_at = datetime.now(timezone.utc)
     msg = Message(workspace_id=workspace_id, conversation_id=conv.id, lead_id=lead.id, campaign_id=conv.campaign_id,
                   direction="in", channel=conv.channel, subject=subject, body=body, state="received", simulated=simulated,
-                  in_reply_to=in_reply_to, peer=(from_email or None) and from_email[:320], sent_at=datetime.now(timezone.utc), intent=intent,
+                  in_reply_to=in_reply_to, peer=(from_email or None) and from_email[:320], sent_at=received_at, intent=intent,
                   intent_confidence=conf, intent_source=src, suggested_reply=I.SUGGESTED.get(intent) or None)
     db.add(msg)
-    conv.last_message_at = msg.sent_at
-    ev.processed_at = msg.sent_at
+    conv.last_message_at = ev.processed_at = received_at
     activity(db, workspace_id, lead.id, "reply.received", intent=intent, confidence=conf, source=src, simulated=simulated)
     apply_intent(db, workspace_id, lead, intent)
     db.flush()
@@ -140,7 +141,7 @@ def ingest_bounce(db: Session, workspace_id: uuid.UUID, *, provider: str, extern
 
 
 def reclassify(db: Session, msg: Message, intent: str, actor: uuid.UUID) -> None:
-    lead = db.get(Lead, msg.lead_id)
+    lead = must_get(db, Lead, msg.lead_id)
     msg.intent, msg.intent_source, msg.intent_confidence = intent, "human", 100
     msg.suggested_reply = I.SUGGESTED.get(intent) or None
     apply_intent(db, msg.workspace_id, lead, intent, actor)

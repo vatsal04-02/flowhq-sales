@@ -90,6 +90,7 @@ class SMTPAdapter:
             m["List-Unsubscribe"] = f"<{msg.list_unsubscribe_url}>"
             m["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
         m.set_content(msg.body)
+        srv: smtplib.SMTP
         try:
             if self.security == "ssl":
                 srv = smtplib.SMTP_SSL(self.host, self.port, timeout=30, context=ssl.create_default_context())

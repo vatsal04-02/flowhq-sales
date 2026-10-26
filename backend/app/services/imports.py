@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.db import must_get
 from app.domain import normalize as n
 from app.domain.dedup import Identity
 from app.jobs import queue
@@ -267,7 +268,7 @@ def run_import(db: Session, job: Job) -> None:
                 process_row(db, ws, batch, row_no, raw)
             batch.next_row = pending[-1][0] + 1
             refresh_counts(db, batch)
-            db.get(Job, job.id).lease_until = queue.now() + _lease()  # heartbeat
+            must_get(db, Job, job.id).lease_until = queue.now() + _lease()  # heartbeat
             db.commit()  # chunk + cursor commit atomically
             pending.clear()
 

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from app.api.deps import Ctx, err, get_ctx
+from app.db import must_get
 from app.domain.normalize import blank
 from app.domain.states import can_transition
 from app.jobs import queue
@@ -80,7 +81,7 @@ def _validate(c: CampaignIn | CampaignPatch) -> None:
     if c.channels is not None and (not c.channels or not set(c.channels) <= CHANNELS):
         raise err(422, "bad_channels", f"channels must be a non-empty subset of {sorted(CHANNELS)}")
     if c.sequence is not None:
-        steps = [s.get("step") for s in c.sequence]
+        steps = [s.get("step", -1) for s in c.sequence]  # a missing step becomes -1 and fails the "starts at 0" check below (422, not a crash)
         if not c.sequence or steps != sorted(set(steps)) or steps[0] != 0 or any(s.get("day", -1) < 0 for s in c.sequence):
             raise err(422, "bad_sequence", "sequence needs ascending unique steps starting at 0 with day >= 0")
     if c.work_start is not None and c.work_end is not None and c.work_start >= c.work_end:
@@ -328,7 +329,7 @@ def list_messages(campaign_id: uuid.UUID | None = None, status: str | None = Non
 @router.get("/messages/{mid}")
 def get_message(mid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
     gm = get_msg(ctx, mid)
-    lead = ctx.db.get(Lead, gm.lead_id)
+    lead = must_get(ctx.db, Lead, gm.lead_id)
     return _msg_dict(ctx.db, gm, lead, ctx.db.get(Company, lead.company_id) if lead.company_id else None, True)
 
 
@@ -354,7 +355,7 @@ def _approve(ctx: Ctx, gm: GeneratedMessage) -> None:
         raise err(409, "bad_state", f"message is {gm.status}")
     if gm.quality.get("errors"):
         raise err(422, "validation_errors", "fix the validation errors before approving", errors=gm.quality["errors"])
-    lead = ctx.db.get(Lead, gm.lead_id)
+    lead = must_get(ctx.db, Lead, gm.lead_id)
     if lead.opted_out or lead.status in ("suppressed", "unsubscribed", "bounced"):
         raise err(409, "lead_suppressed", "this lead is suppressed and cannot be contacted")
     gm.status, gm.approved_hash, gm.approved_by, gm.approved_at = "approved", gm.content_hash, ctx.user.id, datetime.now(timezone.utc)
@@ -365,7 +366,7 @@ def _approve(ctx: Ctx, gm: GeneratedMessage) -> None:
             lead.status = "approved"
     activity(ctx.db, ctx.workspace_id, gm.lead_id, "message.approved", message=str(gm.id), step=gm.step)
     audit(ctx.db, ctx.workspace_id, ctx.user.id, "message.approve", str(gm.id), hash=gm.content_hash[:12])
-    camp = ctx.db.get(Campaign, gm.campaign_id)
+    camp = must_get(ctx.db, Campaign, gm.campaign_id)
     if camp.status == "active" and gm.channel == "email":
         sending.ensure_scheduled(ctx.db, camp, lead, gm.channel)  # approving a later step schedules it
 
@@ -428,8 +429,8 @@ def send_message(mid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
         raise err(409, "manual_channel", f"{gm.channel} is a manual channel: copy the draft and use the manual queue")
     if gm.status != "approved" or gm.approved_hash != gm.content_hash:
         raise err(409, "not_approved", "only an approved, unedited message can be queued")
-    camp = ctx.db.get(Campaign, gm.campaign_id)
-    lead = ctx.db.get(Lead, gm.lead_id)
+    camp = must_get(ctx.db, Campaign, gm.campaign_id)
+    lead = must_get(ctx.db, Lead, gm.lead_id)
     a = sending.ensure_scheduled(ctx.db, camp, lead, gm.channel)
     if a is None:
         raise err(409, "nothing_to_schedule", "no unsent approved step is next in the sequence for this lead")
@@ -459,7 +460,7 @@ def mark_sent(mid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
     gm = get_msg(ctx, mid)
     if gm.channel not in ("linkedin", "instagram") or gm.status != "approved":
         raise err(409, "bad_state", "only approved LinkedIn/Instagram drafts can be marked as sent")
-    lead = ctx.db.get(Lead, gm.lead_id)
+    lead = must_get(ctx.db, Lead, gm.lead_id)
     if lead.opted_out or lead.status in ("suppressed", "unsubscribed", "bounced"):
         raise err(409, "lead_suppressed", "lead is suppressed")
     conv = ctx.db.scalars(select(Conversation).where(Conversation.lead_id == lead.id, Conversation.campaign_id == gm.campaign_id, Conversation.channel == gm.channel)).first()
@@ -524,7 +525,7 @@ def resolve_action(aid: uuid.UUID, body: ResolveIn, ctx: Ctx = Depends(get_ctx))
         a.state = "sent"
         if m:
             m.state, m.sent_at = "sent", m.sent_at or datetime.now(timezone.utc)
-        gm = ctx.db.get(GeneratedMessage, a.generated_message_id)
+        gm = must_get(ctx.db, GeneratedMessage, a.generated_message_id)
         gm.status = "sent"
     else:
         a.state, a.run_at, a.last_error = "pending", datetime.now(timezone.utc), None

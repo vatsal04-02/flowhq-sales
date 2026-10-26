@@ -16,7 +16,7 @@ from app.adapters.channels.imap import ImapError
 from app.api.deps import Ctx, err, get_ctx, require_admin
 from app.core.config import get_settings
 from app.core.crypto import decrypt, encrypt
-from app.db import get_db
+from app.db import get_db, must_get
 from app.domain import intent as I
 from app.domain.states import can_transition
 from app.models import (
@@ -70,7 +70,7 @@ def _conv(ctx: Ctx, cid: uuid.UUID) -> Conversation:
 @router.get("/conversations/{cid}")
 def conversation(cid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
     c = _conv(ctx, cid)
-    lead = ctx.db.get(Lead, c.lead_id)
+    lead = must_get(ctx.db, Lead, c.lead_id)
     co = ctx.db.get(Company, lead.company_id) if lead.company_id else None
     msgs = ctx.db.scalars(select(Message).where(Message.conversation_id == c.id).order_by(Message.created_at))
     camp = ctx.db.get(Campaign, c.campaign_id) if c.campaign_id else None
@@ -88,29 +88,30 @@ class ReplyIn(BaseModel):
 def reply(cid: uuid.UUID, body: ReplyIn, ctx: Ctx = Depends(get_ctx)):
     """Human-written reply. Still passes suppression, kill-switch and capability checks; never bypasses them."""
     c = _conv(ctx, cid)
-    lead = ctx.db.get(Lead, c.lead_id)
-    ws = ctx.db.get(Workspace, ctx.workspace_id)
+    lead = must_get(ctx.db, Lead, c.lead_id)
+    ws = must_get(ctx.db, Workspace, ctx.workspace_id)
     camp = ctx.db.get(Campaign, c.campaign_id) if c.campaign_id else None
     acct = ctx.db.get(ChannelAccount, camp.channel_account_id) if camp and camp.channel_account_id else None
     if ws.kill_switch:
         raise err(409, "kill_switch", "global kill switch is on")
     if lead.opted_out or SuppressionRepo(ctx.db, ctx.workspace_id).is_suppressed(lead.email_norm, lead.phone_e164):
         raise err(409, "lead_suppressed", "this lead opted out or is suppressed; replying is blocked")
-    if c.channel != "email" or not acct or not capabilities_for("email", acct.provider).can_send:
+    if c.channel != "email" or not acct or not lead.email_norm or not capabilities_for("email", acct.provider).can_send:
         raise err(409, "cannot_send", "this conversation has no sending account; copy your reply and send it manually")
     last_in = ctx.db.scalars(select(Message).where(Message.conversation_id == c.id).order_by(Message.created_at.desc())).first()
     key = f"reply:{uuid.uuid4()}"
+    subject, message_id = f"Re: {c.subject or ''}".strip(), f"<{uuid.uuid4().hex}@{acct.from_email.split('@')[-1]}>"
     msg = Message(workspace_id=ctx.workspace_id, conversation_id=c.id, lead_id=lead.id, campaign_id=c.campaign_id, channel_account_id=acct.id,
-                  direction="out", channel="email", subject=f"Re: {c.subject or ''}".strip(), body=body.body, state="sending", idempotency_key=key,
-                  message_id_header=f"<{uuid.uuid4().hex}@{acct.from_email.split('@')[-1]}>",
+                  direction="out", channel="email", subject=subject, body=body.body, state="sending", idempotency_key=key,
+                  message_id_header=message_id,
                   in_reply_to=(last_in.message_id_header if last_in and last_in.direction == "out" else last_in.in_reply_to if last_in else None))
     ctx.db.add(msg)
     ctx.db.commit()
     creds = json.loads(decrypt(acct.credentials_enc)) if acct.credentials_enc else None
     try:
         res = adapter_for(acct.provider, creds).send(Outbound(to=lead.email_norm, from_email=acct.from_email, from_name=camp.sender_name if camp else "",
-                                                              subject=msg.subject, body=msg.body + f"\n\n--\nUnsubscribe: {sending.unsub_url(lead.workspace_id, lead.id)}",
-                                                              message_id=msg.message_id_header, in_reply_to=msg.in_reply_to,
+                                                              subject=subject, body=msg.body + f"\n\n--\nUnsubscribe: {sending.unsub_url(lead.workspace_id, lead.id)}",
+                                                              message_id=message_id, in_reply_to=msg.in_reply_to,
                                                               list_unsubscribe_url=sending.unsub_url(lead.workspace_id, lead.id)), key)
     except SendError as e:
         msg.state, msg.error = "failed", str(e)[:400]
@@ -242,7 +243,7 @@ def patch_opp(oid: uuid.UUID, body: OppPatch, ctx: Ctx = Depends(get_ctx)):
     ch = body.model_dump(exclude_unset=True)
     if "stage" in ch and ch["stage"] not in STAGES:
         raise err(422, "bad_stage", f"stage must be one of {STAGES}")
-    lead = ctx.db.get(Lead, o.lead_id)
+    lead = must_get(ctx.db, Lead, o.lead_id)
     if ch.get("stage") and ch["stage"] != o.stage:
         activity(ctx.db, ctx.workspace_id, lead.id, "opportunity.stage", old=o.stage, new=ch["stage"], by=str(ctx.user.id))
         tgt = STAGE_TO_LEAD.get(ch["stage"])
@@ -303,7 +304,7 @@ def integrations(ctx: Ctx = Depends(get_ctx)):
     accts = ctx.db.scalars(select(ChannelAccount).where(ChannelAccount.workspace_id == ctx.workspace_id).order_by(ChannelAccount.created_at))
     usage = ctx.db.execute(select(func.count(), func.coalesce(func.avg(AIUsageRecord.latency_ms), 0), func.count().filter(AIUsageRecord.ok.is_(False)))
                            .where(AIUsageRecord.workspace_id == ctx.workspace_id)).one()
-    ws = ctx.db.get(Workspace, ctx.workspace_id)
+    ws = must_get(ctx.db, Workspace, ctx.workspace_id)
     return {"accounts": [_acct_dict(a) for a in accts], "llm": _llm_health(),
             "llm_usage": {"calls": usage[0], "avg_latency_ms": int(usage[1]), "failures": usage[2]},
             "manual_channels": [{"channel": "linkedin", "mode": "manual-assist", "note": "Drafts + copy + mark-sent. No automation."},
@@ -354,6 +355,8 @@ def test_account(aid: uuid.UUID, ctx: Ctx = Depends(get_ctx)):
     if a.provider == "mock":
         h["smtp"] = {"ok": True, "checked_at": now, "note": "sandbox"}
     else:
+        if not a.credentials_enc:
+            raise err(409, "no_credentials", "this account has no stored credentials; remove it and add it again")
         c = json.loads(decrypt(a.credentials_enc))
         try:
             srv = smtplib.SMTP_SSL(c["host"], c["port"], timeout=10) if c["security"] == "ssl" else smtplib.SMTP(c["host"], c["port"], timeout=10)
@@ -417,7 +420,7 @@ class KillIn(BaseModel):
 
 @router.post("/workspace/kill-switch")
 def kill_switch(body: KillIn, ctx: Ctx = Depends(get_ctx)):
-    ws = ctx.db.get(Workspace, ctx.workspace_id)
+    ws = must_get(ctx.db, Workspace, ctx.workspace_id)
     ws.kill_switch = body.on
     audit(ctx.db, ctx.workspace_id, ctx.user.id, "workspace.kill_switch", None, on=body.on)
     ctx.db.commit()

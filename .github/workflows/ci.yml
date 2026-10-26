@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install -r backend/requirements.lock pytest ruff aiosmtpd pymap
-      - run: cd backend && ruff check . && pytest -q
+      - run: cd backend && ruff check . && mypy app && pytest -q
   frontend:
     runs-on: ubuntu-latest
     steps:

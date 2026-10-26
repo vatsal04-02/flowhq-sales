@@ -1,4 +1,4 @@
-# Dev stack. NOTE: not yet verified in the authoring sandbox (no Docker daemon there); see TASKS.md.
+# Dev stack. Verified end to end with `docker compose up --build` (login, import and worker job through the web proxy).
 services:
   postgres:
     image: postgres:16
@@ -27,9 +27,10 @@ services:
     depends_on:
       api: {condition: service_healthy}
   web:
-    build: ./frontend
-    environment:
-      API_URL: http://api:8000
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://api:8000   # baked into the Next.js proxy rewrite at build time
     depends_on: [api]
     ports: ["${WEB_PORT:-3000}:3000"]
   mailpit:            # dev-only SMTP sink (used from M6)

@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from email import message_from_string, policy
-from email.message import Message
+from email.message import EmailMessage, Message
 from email.parser import BytesParser
 from email.utils import parseaddr, parsedate_to_datetime
 from html.parser import HTMLParser
@@ -78,19 +78,26 @@ def _ids(value) -> list[str]:
     return _ID.findall(str(value or ""))
 
 
+def _first_id(value) -> str | None:
+    ids = _ids(value)
+    return ids[0] if ids else None
+
+
 def _body(msg: Message) -> str:
     try:
-        part = msg.get_body(preferencelist=("plain", "html"))
-        if part is None:
-            return ""
-        content = part.get_content()
-        return html_to_text(content) if part.get_content_type() == "text/html" else content
+        if isinstance(msg, EmailMessage):
+            part = msg.get_body(preferencelist=("plain", "html"))
+            if part is None:
+                return ""
+            content = part.get_content()
+            return html_to_text(content) if part.get_content_type() == "text/html" else content
     except Exception:  # noqa: BLE001 - bad charset / broken part: fall back to raw payload
-        try:
-            raw = msg.get_payload(decode=True)
-            return raw.decode("utf-8", errors="replace") if raw else ""
-        except Exception:  # noqa: BLE001
-            return ""
+        pass
+    try:
+        raw = msg.get_payload(decode=True)
+        return raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) and raw else ""
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _dsn(msg: Message) -> Bounce | None:
@@ -117,9 +124,9 @@ def _dsn(msg: Message) -> Bounce | None:
             pl = part.get_payload()
             inner = pl[0] if isinstance(pl, list) and pl else None
             if isinstance(inner, Message):
-                orig = orig or (_ids(inner.get("Message-ID")) or [None])[0]
+                orig = orig or _first_id(inner.get("Message-ID"))
             elif isinstance(pl, str):
-                orig = orig or (_ids(message_from_string(pl).get("Message-ID")) or [None])[0]
+                orig = orig or _first_id(message_from_string(pl).get("Message-ID"))
     return Bounce(permanent, recipient, orig, status)
 
 
@@ -145,7 +152,7 @@ def parse(raw: bytes) -> Parsed:
         return Parsed()
     mids = _ids(msg.get("Message-ID"))
     refs = _ids(msg.get("References"))
-    irt = (_ids(msg.get("In-Reply-To")) or [None])[0]
+    irt = _first_id(msg.get("In-Reply-To"))
     _, addr = parseaddr(str(msg.get("From", "")))
     from_addr = addr.lower() or None
     subject = " ".join(str(msg.get("Subject", "")).split())[:300]

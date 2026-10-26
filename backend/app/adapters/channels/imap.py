@@ -44,7 +44,7 @@ class ImapClient:
             typ, data = conn.select("INBOX", readonly=True)
             if typ != "OK":
                 raise ImapError("cannot open INBOX")
-            return int(data[0])
+            return int(data[0] or 0)
         except (imaplib.IMAP4.error, OSError) as exc:
             raise ImapError(f"{type(exc).__name__}: {exc}"[:300]) from exc
         finally:
@@ -68,17 +68,17 @@ class ImapClient:
             if vdata and vdata[0]:
                 validity = int(vdata[0])
             fresh = last_uid is None or (uidvalidity is not None and validity != uidvalidity)
-            if fresh:  # first run or the server renumbered the mailbox: only look back a bounded window
+            if fresh or last_uid is None:  # first run or the server renumbered the mailbox: only look back a bounded window
                 since = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).strftime("%d-%b-%Y")
-                typ, data = conn.uid("SEARCH", None, "SINCE", since)
+                typ, data = conn.uid("SEARCH", None, "SINCE", since)  # type: ignore[arg-type]  # None = no charset
             else:
-                typ, data = conn.uid("SEARCH", None, "UID", f"{last_uid + 1}:*")
+                typ, data = conn.uid("SEARCH", None, "UID", f"{last_uid + 1}:*")  # type: ignore[arg-type]
             if typ != "OK":
                 raise ImapError("search failed")
             uids = sorted(int(u) for u in (data[0] or b"").split())
             highest = None
             if fresh:
-                typ2, all_ids = conn.uid("SEARCH", None, "ALL")
+                typ2, all_ids = conn.uid("SEARCH", None, "ALL")  # type: ignore[arg-type]
                 nums = [int(u) for u in (all_ids[0] or b"").split()] if typ2 == "OK" else []
                 highest = max(nums) if nums else 0
             if not fresh:

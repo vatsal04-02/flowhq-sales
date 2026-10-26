@@ -3,7 +3,7 @@
 Status (2026-10-26): M0–M7 core workflow implemented and tested against a mock email provider; see TASKS.md for the exact verified / not-verified list.
 Implemented differently from the first plan: personalization is **template-first** (model only proposes a subject + opening line that must quote verified evidence), research is **model-free**, and replies are classified by **rules first** (a model only refines "unclear"; opt-outs are never left to a model). This is what makes a small, fast local model (or none at all) workable.
 Reply/bounce detection over IMAP is implemented and tested against a local SMTP server and two IMAP servers (not against a hosted provider).
-Not implemented/verified: real Ollama runs, Docker/CI runs, hosted-mailbox runs (Gmail/Outlook), M8 hardening.
+Not implemented/verified: real Ollama runs, GitHub CI runs, hosted-mailbox runs (Gmail/Outlook), M8 hardening.
 
 ## 1. Repository & environment assessment
 

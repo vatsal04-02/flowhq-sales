@@ -19,9 +19,8 @@ app.include_router(inbox_router, prefix="/api/v1")
 @app.exception_handler(HTTPException)
 async def http_error(_: Request, exc: HTTPException):
     detail = exc.detail
-    if not (isinstance(detail, dict) and "error" in detail):
-        detail = {"error": {"code": "http_error", "message": str(detail), "details": {}}}
-    return JSONResponse(detail, status_code=exc.status_code)
+    content = detail if isinstance(detail, dict) and "error" in detail else {"error": {"code": "http_error", "message": str(detail), "details": {}}}
+    return JSONResponse(content, status_code=exc.status_code)
 
 
 @app.get("/healthz")
